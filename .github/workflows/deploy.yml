@@ -10,6 +10,7 @@ permissions:
 env:
   RESOURCE_GROUP_NAME: octane-benchmark-rg
   RESOURCE_GROUP_LOCATION: eastus
+  STORAGE_JOB_TABLE_NAME: jobs
 jobs:
   deploy-infrastructure:
     name: Deploy infrastructure
@@ -24,3 +25,28 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           enable-AzPSSession: true
+      - name: Deploy Bicep file
+        uses: azure/powershell@v1
+        with:
+          inlineScript: |
+            Set-StrictMode -Version Latest
+            $ErrorActionPreference = "Stop"
+            $VerbosePreference = "Continue"
+            $InformationPreference = "Continue"
+
+            Write-Information "Creating resource group..."
+            New-AzResourceGroup -Name "${{ env.RESOURCE_GROUP_NAME }}" -Location "${{ env.RESOURCE_GROUP_LOCATION }}" -Force
+            
+            Write-Information "Creating resources..."
+            $deploymentParameters = @{
+              ResourceGroupName = "${{ env.RESOURCE_GROUP_NAME }}"
+              TemplateFile = "./bicep/main.bicep"
+              TemplateParameterObject = @{
+                storageAccountName = "${{ secrets.STORAGE_ACCOUNT_NAME }}"
+                storageJobTableName = "${{ env.STORAGE_JOB_TABLE_NAME }}"
+              }
+            }
+            New-AzResourceGroupDeployment @deploymentParameters
+
+            Write-Information "Execution complete."
+          azPSVersion: "latest"
