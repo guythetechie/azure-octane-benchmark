@@ -1,5 +1,4 @@
 param storageAccountName string
-param storageJobTableName string
 param location string = resourceGroup().location
 param tags object = {}
 param serviceBusName string
@@ -27,7 +26,7 @@ resource storageTableServices 'Microsoft.Storage/storageAccounts/tableServices@2
 }
 
 resource storageJobTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2021-09-01' = {
-  name: storageJobTableName
+  name: 'jobs'
   parent: storageTableServices
 }
 
@@ -101,7 +100,68 @@ resource functionAppSettings 'Microsoft.Web/sites/config@2021-02-01' = {
   properties: {
     APPLICATIONINSIGHTS_CONNECTION_STRING: applicationInsights.properties.ConnectionString
     AzureWebJobsDisableHomepage: 'true'
+    AzureWebJobsStorage__blobServiceUri: storageAccount.properties.primaryEndpoints.blob
     FUNCTIONS_WORKER_RUNTIME: 'dotnet'
     FUNCTIONS_EXTENSION_VERSION: '~4'
+  }
+}
+
+resource contributorRoleDefinition 'Microsoft.Authorization/roleDefinitions@2018-01-01-preview' existing = {
+  scope: subscription()
+  name: 'b24988ac-6180-42a0-ab88-20f7382dd24c'
+}
+
+resource functionAppContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2020-10-01-preview' = {
+  name: guid(functionApp.id, resourceGroup().id, contributorRoleDefinition.id)
+  scope: resourceGroup()
+  properties: {
+    principalId: functionApp.identity.principalId
+    roleDefinitionId: contributorRoleDefinition.id
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource storageBlobDataOwnerRoleDefinition 'Microsoft.Authorization/roleDefinitions@2018-01-01-preview' existing = {
+  scope: subscription()
+  name: 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
+}
+
+resource functionAppStorageBlobDataOwnerRoleAssignment 'Microsoft.Authorization/roleAssignments@2020-10-01-preview' = {
+  name: guid(functionApp.id, storageAccount.id, storageBlobDataOwnerRoleDefinition.id)
+  scope: storageAccount
+  properties: {
+    principalId: functionApp.identity.principalId
+    roleDefinitionId: storageBlobDataOwnerRoleDefinition.id
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource serviceBusDataSenderRoleDefinition 'Microsoft.Authorization/roleDefinitions@2018-01-01-preview' existing = {
+  scope: subscription()
+  name: '69a216fc-b8fb-44d8-bc22-1f3c2cd27a39'
+}
+
+resource functionAppServiceBusDataSenderRoleAssignment 'Microsoft.Authorization/roleAssignments@2020-10-01-preview' = {
+  name: guid(functionApp.id, serviceBus.id, serviceBusDataSenderRoleDefinition.id)
+  scope: serviceBus
+  properties: {
+    principalId: functionApp.identity.principalId
+    roleDefinitionId: serviceBusDataSenderRoleDefinition.id
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource serviceBusDataReceiverRoleDefinition 'Microsoft.Authorization/roleDefinitions@2018-01-01-preview' existing = {
+  scope: subscription()
+  name: '4f6d3b9b-027b-4f4c-9142-0e5a2a2247e0'
+}
+
+resource functionAppServiceBusDataReceiverRoleAssignment 'Microsoft.Authorization/roleAssignments@2020-10-01-preview' = {
+  name: guid(functionApp.id, serviceBus.id, serviceBusDataReceiverRoleDefinition.id)
+  scope: serviceBus
+  properties: {
+    principalId: functionApp.identity.principalId
+    roleDefinitionId: serviceBusDataReceiverRoleDefinition.id
+    principalType: 'ServicePrincipal'
   }
 }

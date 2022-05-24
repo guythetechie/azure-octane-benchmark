@@ -10,7 +10,6 @@ permissions:
 env:
   RESOURCE_GROUP_NAME: octane-benchmark-rg
   RESOURCE_GROUP_LOCATION: eastus
-  STORAGE_JOB_TABLE_NAME: jobs
 jobs:
   deploy-infrastructure:
     name: Deploy infrastructure
@@ -43,7 +42,6 @@ jobs:
               TemplateFile = "./bicep/main.bicep"
               TemplateParameterObject = @{
                 storageAccountName = "${{ secrets.STORAGE_ACCOUNT_NAME }}"
-                storageJobTableName = "${{ env.STORAGE_JOB_TABLE_NAME }}"
                 serviceBusName = "${{ secrets.SERVICE_BUS_NAME }}"
                 logAnalyticsWorkspaceName = "${{ secrets.LOG_ANALYTICS_WORKSPACE_NAME }}"
                 applicationInsightsName = "${{ secrets.APPLICATION_INSIGHTS_NAME }}"
