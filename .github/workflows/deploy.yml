@@ -66,7 +66,7 @@ jobs:
           dotnet publish "${{ github.workspace }}/code/functionapp/functionapp.csproj" --configuration Release --output "${{ runner.temp }}/functionapp"
           
           echo "Zipping function app..."
-          7z a "${{ runner.temp }}/functionapp.zip" "${{ runner.temp }}/functionapp"
+          7z a "${{ runner.temp }}/functionapp.zip" "${{ runner.temp }}/functionapp/*"
 
           echo "Script complete."
       - name: Publish function app artifact
