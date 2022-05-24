@@ -44,6 +44,11 @@ jobs:
               TemplateParameterObject = @{
                 storageAccountName = "${{ secrets.STORAGE_ACCOUNT_NAME }}"
                 storageJobTableName = "${{ env.STORAGE_JOB_TABLE_NAME }}"
+                serviceBusName = "${{ secrets.SERVICE_BUS_NAME }}"
+                logAnalyticsWorkspaceName = "${{ secrets.LOG_ANALYTICS_WORKSPACE_NAME }}"
+                applicationInsightsName = "${{ secrets.APPLICATION_INSIGHTS_NAME }}"
+                functionAppName = "${{ secrets.FUNCTION_APP_NAME }}"
+                appServicePlanName = "${{ secrets.APP_SERVICE_PLAN_NAME }}"
               }
             }
             New-AzResourceGroupDeployment @deploymentParameters
