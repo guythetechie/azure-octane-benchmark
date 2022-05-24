@@ -1,8 +1,9 @@
 name: Deploy
 on:
-  workflow_dispatch:
   push:
-    branches: [dev]
+    branches:
+      - dev
+  workflow_dispatch:
 permissions:
   contents: read
   id-token: write
@@ -38,7 +39,7 @@ jobs:
             Write-Information "Creating resources..."
             $deploymentParameters = @{
               ResourceGroupName = "${{ env.RESOURCE_GROUP_NAME }}"
-              TemplateFile = "./bicep/main.bicep"
+              TemplateFile = "${{ github.workspace}}/bicep/main.bicep"
               TemplateParameterObject = @{
                 storageAccountName = "${{ secrets.STORAGE_ACCOUNT_NAME }}"
                 serviceBusName = "${{ secrets.SERVICE_BUS_NAME }}"
@@ -52,3 +53,24 @@ jobs:
 
             Write-Information "Execution complete."
           azPSVersion: "latest"
+  package-function-app:
+    name: Package function app
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v3
+      - name: Create function app artifact
+        run: |
+          set -eu
+          echo "Publishing function app..."
+          dotnet publish "${{ github.workspace }}/code/functionapp/functionapp.csproj" --configuration Release --output "${{ runner.temp }}/functionapp"
+          
+          echo "Zipping function app..."
+          7z a "${{ runner.temp }}/functionapp.zip" "${{ runner.temp }}/functionapp"
+
+          echo "Script complete."
+      - name: Publish function app artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: functionapp
+          path: "${{ runner.temp }}/functionapp.zip"
