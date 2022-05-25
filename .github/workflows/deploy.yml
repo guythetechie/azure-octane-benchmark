@@ -76,6 +76,9 @@ jobs:
           path: "${{ runner.temp }}/functionapp.zip"
   publish-function-app:
     name: Publish function app
+    needs:
+      - package-function-app
+      - deploy-infrastructure
     runs-on: ubuntu-latest
     steps:
       - name: Download function app artifact
