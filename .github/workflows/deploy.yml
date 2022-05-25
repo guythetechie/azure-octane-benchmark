@@ -74,3 +74,26 @@ jobs:
         with:
           name: functionapp
           path: "${{ runner.temp }}/functionapp.zip"
+  publish-function-app:
+    name: Publish function app
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download function app artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: functionapp
+          path: ${{ runner.temp }}
+      - name: Logon to Azure
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Publish function app
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            set -eu
+            echo "Deploying function..."
+            az functionapp deployment source config-zip --src "${{ runner.temp }}/functionapp.zip" --resource-group "${{ env.RESOURCE_GROUP_NAME }}" --name "${{ secrets.FUNCTION_APP_NAME }}"
+            echo "Script complete."
