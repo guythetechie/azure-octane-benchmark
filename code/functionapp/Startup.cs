@@ -20,5 +20,10 @@ public class Startup : FunctionsStartup
 
     public static void ConfigureServices(IServiceCollection services)
     {
+        services.AddSingleton(ServiceProviderModule.GetAzureAuthorityUri)
+                .AddSingleton(ServiceProviderModule.GetTokenCredential)
+                .AddSingleton(ServiceProviderModule.GetServiceBusClient)
+                .AddSingleton(ServiceProviderModule.GetVirtualMachineCreationQueueName)
+                .AddTransient(ServiceProviderModule.GetQueueVirtualMachineCreation);
     }
 }

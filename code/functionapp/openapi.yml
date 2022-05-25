@@ -1,0 +1,59 @@
+openapi: "3.0.2"
+info:
+  title: Scheduler API
+  version: "1.0"
+paths:
+  /jobs:
+    post:
+      summary: Create a job
+      description: Create a job
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  virtualMachineSku:
+                    description: Virtual machine SKU
+                    type: string
+                    minLength: 1
+                    example: Standard_D2s
+                  virtualMachineCount:
+                    description: Virtual machine count
+                    type: integer
+                    minimum: 0
+                    example: 1
+                required:
+                  - virtualMachineSku
+                  - virtualMachineCount
+      responses:
+        "204":
+          description: Job was scheduled successfully
+        "400":
+          description: JSON validation failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          description: Error code
+          type: string
+          enum:
+            - InvalidJson
+          example: InvalidJson
+        message:
+          description: Error message
+          type: string
+          minLength: 1
+          example: "Virtual machine count cannot be less than zero."
+      required:
+        - code
+        - message
