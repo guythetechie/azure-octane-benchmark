@@ -35,6 +35,7 @@ public static class VirtualMachineModule
     {
         var nicData = new NetworkInterfaceData()
         {
+            Location = resourceGroup.Data.Location,
             IPConfigurations =
             {
                 new NetworkInterfaceIPConfigurationData
@@ -91,7 +92,16 @@ public static class VirtualMachineModule
             }
         };
 
-        await resourceGroup.GetVirtualMachines().CreateOrUpdateAsync(Azure.WaitUntil.Completed, virtualMachine.Name, virtualMachineData, cancellationToken);
+        await resourceGroup.GetVirtualMachines().CreateOrUpdateAsync(WaitUntil.Completed, virtualMachine.Name, virtualMachineData, cancellationToken);
+
+        return Unit.Default;
+    }
+
+    public static async ValueTask<Unit> DeleteVirtualMachine(ResourceGroupResource resourceGroup, VirtualMachineName virtualMachineName, CancellationToken cancellationToken)
+    {
+        var virtualMachineResponse = await resourceGroup.GetVirtualMachines().GetAsync(virtualMachineName, cancellationToken: cancellationToken);
+
+        await virtualMachineResponse.Value.DeleteAsync(WaitUntil.Started, forceDeletion: true, cancellationToken);
 
         return Unit.Default;
     }

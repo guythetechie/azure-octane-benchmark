@@ -45,6 +45,7 @@ jobs:
                 serviceBusName = "${{ secrets.SERVICE_BUS_NAME }}"
                 logAnalyticsWorkspaceName = "${{ secrets.LOG_ANALYTICS_WORKSPACE_NAME }}"
                 applicationInsightsName = "${{ secrets.APPLICATION_INSIGHTS_NAME }}"
+                virtualNetworkName = "${{ secrets.VIRTUAL_NETWORK_NAME }}"
                 functionAppName = "${{ secrets.FUNCTION_APP_NAME }}"
                 appServicePlanName = "${{ secrets.APP_SERVICE_PLAN_NAME }}"
               }
