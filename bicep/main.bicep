@@ -3,6 +3,7 @@ param location string = resourceGroup().location
 param tags object = {}
 param serviceBusName string
 param virtualNetworkName string
+param bastionName string
 param logAnalyticsWorkspaceName string
 param applicationInsightsName string
 param appServicePlanName string
@@ -124,7 +125,7 @@ resource bastionPublicIP 'Microsoft.Network/publicIPAddresses@2021-05-01' = {
 }
 
 resource bastion 'Microsoft.Network/bastionHosts@2021-05-01' = {
-  name: 'bastion'
+  name: bastionName
   location: location
   tags: tags
   properties: {
@@ -181,6 +182,7 @@ resource functionAppSettings 'Microsoft.Web/sites/config@2021-02-01' = {
     VIRTUAL_MACHINE_SUBNET_ID: virtualMachineSubnet.id
     ServiceBusConnection__fullyQualifiedNamespace: split(split(serviceBus.properties.serviceBusEndpoint, '/')[2], ':')[0]
     SERVICE_BUS_CREATE_VM_QUEUE_NAME: serviceBusCreateVmQueue.name
+    SERVICE_BUS_DELETE_VM_QUEUE_NAME: serviceBusDeleteVmQueue.name
   }
 }
 

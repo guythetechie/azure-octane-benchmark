@@ -1,5 +1,4 @@
 ﻿using Azure;
-using Azure.ResourceManager;
 using Azure.ResourceManager.Compute;
 using Azure.ResourceManager.Compute.Models;
 using Azure.ResourceManager.Network;
@@ -7,6 +6,7 @@ using Azure.ResourceManager.Network.Models;
 using Azure.ResourceManager.Resources;
 using LanguageExt;
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -29,6 +29,8 @@ public delegate ValueTask<Unit> QueueVirtualMachineCreation(Seq<(VirtualMachine 
 
 public delegate ValueTask<Unit> CreateVirtualMachine(VirtualMachine virtualMachine, CancellationToken cancellationToken);
 
+public delegate ValueTask<Unit> DeleteVirtualMachine(VirtualMachineName virtualMachineName, CancellationToken cancellationToken);
+
 public static class VirtualMachineModule
 {
     public static async ValueTask<Unit> CreateVirtualMachine(ResourceGroupResource resourceGroup, SubnetData subnetData, VirtualMachine virtualMachine, CancellationToken cancellationToken)
@@ -47,7 +49,7 @@ public static class VirtualMachineModule
             }
         };
 
-        await resourceGroup.GetNetworkInterfaces().CreateOrUpdateAsync(WaitUntil.Completed, $"{virtualMachine.Name}-nic", nicData, cancellationToken);
+        var nicOperation = await resourceGroup.GetNetworkInterfaces().CreateOrUpdateAsync(WaitUntil.Completed, $"{virtualMachine.Name}-nic", nicData, cancellationToken);
 
         var virtualMachineData = new VirtualMachineData(resourceGroup.Data.Location)
         {
@@ -68,7 +70,8 @@ public static class VirtualMachineModule
                 {
                     new NetworkInterfaceReference
                     {
-                        Primary= true
+                        Primary= true,
+                        Id = nicOperation.Value.Id
                     }
                 }
             },
@@ -99,9 +102,12 @@ public static class VirtualMachineModule
 
     public static async ValueTask<Unit> DeleteVirtualMachine(ResourceGroupResource resourceGroup, VirtualMachineName virtualMachineName, CancellationToken cancellationToken)
     {
-        var virtualMachineResponse = await resourceGroup.GetVirtualMachines().GetAsync(virtualMachineName, cancellationToken: cancellationToken);
+        var virtualMachineResponse = await resourceGroup.GetVirtualMachineAsync(virtualMachineName, cancellationToken: cancellationToken);
+        await virtualMachineResponse.Value.DeleteAsync(WaitUntil.Completed, forceDeletion: true, cancellationToken);
 
-        await virtualMachineResponse.Value.DeleteAsync(WaitUntil.Started, forceDeletion: true, cancellationToken);
+        var networkInterfaceName = virtualMachineResponse.Value.Data.NetworkProfile.NetworkInterfaces.First().Id.Split('/').Last();
+        var networkInterfaceResponse = await resourceGroup.GetNetworkInterfaceAsync(networkInterfaceName, cancellationToken: cancellationToken);
+        await networkInterfaceResponse.Value.DeleteAsync(WaitUntil.Started, cancellationToken);
 
         return Unit.Default;
     }

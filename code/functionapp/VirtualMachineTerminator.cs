@@ -13,23 +13,23 @@ using static LanguageExt.Prelude;
 
 namespace functionapp;
 
-public class VirtualMachineCreator
+public class VirtualMachineTerminator
 {
-    private readonly CreateVirtualMachine createVirtualMachine;
+    private readonly DeleteVirtualMachine deleteVirtualMachine;
 
-    public VirtualMachineCreator(CreateVirtualMachine createVirtualMachine)
+    public VirtualMachineTerminator(DeleteVirtualMachine deleteVirtualMachine)
     {
-        this.createVirtualMachine = createVirtualMachine;
+        this.deleteVirtualMachine = deleteVirtualMachine;
     }
 
-    [FunctionName("create-virtual-machine")]
-    public async Task Run([ServiceBusTrigger("%SERVICE_BUS_CREATE_VM_QUEUE_NAME%", Connection = "ServiceBusConnection", AutoCompleteMessages = false)] ServiceBusReceivedMessage message, ServiceBusMessageActions messageActions, ILogger logger, CancellationToken cancellationToken)
+    [FunctionName("delete-virtual-machine")]
+    public async Task Run([ServiceBusTrigger("%SERVICE_BUS_DELETE_VM_QUEUE_NAME%", Connection = "ServiceBusConnection", AutoCompleteMessages = false)] ServiceBusReceivedMessage message, ServiceBusMessageActions messageActions, ILogger logger, CancellationToken cancellationToken)
     {
         await JsonObjectModule.FromBinaryData(message.Body)
-                              .Do(requestJson => logger.LogInformation("Request payload: {CreateVirtualMachineRequestJson}", requestJson.SerializeToString()))
-                              .Bind(DeserializeToVirtualMachine)
-                              .Do(_ => logger.LogInformation("Creating virtual machine..."))
-                              .MapAsync(vm => createVirtualMachine(vm, cancellationToken))
+                              .Do(requestJson => logger.LogInformation("Request payload: {DeleteVirtualMachineRequestJson}", requestJson.SerializeToString()))
+                              .Bind(GetVirtualMachineName)
+                              .Do(_ => logger.LogInformation("Deleting virtual machine..."))
+                              .MapAsync(virtualMachineName => deleteVirtualMachine(virtualMachineName, cancellationToken))
                               .Do(_ => logger.LogInformation("Completing service bus message..."))
                               .MapAsync(async _ =>
                               {
@@ -59,12 +59,9 @@ public class VirtualMachineCreator
                               .RunAndThrowIfFail();
     }
 
-    private static Eff<VirtualMachine> DeserializeToVirtualMachine(JsonObject jsonObject)
+    private static Eff<VirtualMachineName> GetVirtualMachineName(JsonObject jsonObject)
     {
         return from virtualMachineNameString in jsonObject.TryGetNonEmptyStringProperty("virtualMachineName")
-               let virtualMachineName = new VirtualMachineName(virtualMachineNameString)
-               from virtualMachineSkuString in jsonObject.TryGetNonEmptyStringProperty("virtualMachineSku")
-               let virtualMachineSku = new VirtualMachineSku(virtualMachineSkuString)
-               select new VirtualMachine(virtualMachineName, virtualMachineSku);
+               select new VirtualMachineName(virtualMachineNameString);
     }
 }
