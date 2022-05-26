@@ -9,11 +9,7 @@ public static class EffModule
 {
     public static Eff<T> MapFail<T>(this Eff<T> eff, Func<Error, Error> f)
     {
-        return eff.ToAff()
-                  .MapFail(f)
-                  .Run()
-                  .AsTask().Result
-                  .ToEff();
+        return eff.BiMap(Prelude.identity, f);
     }
 }
 
