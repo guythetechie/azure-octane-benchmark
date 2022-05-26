@@ -103,7 +103,7 @@ resource functionAppSettings 'Microsoft.Web/sites/config@2021-02-01' = {
     AzureWebJobsStorage__blobServiceUri: storageAccount.properties.primaryEndpoints.blob
     FUNCTIONS_WORKER_RUNTIME: 'dotnet'
     FUNCTIONS_EXTENSION_VERSION: '~4'
-    ServiceBusConnection__fullyQualifiedNamespace: split(serviceBus.properties.serviceBusEndpoint, '/')[2]
+    ServiceBusConnection__fullyQualifiedNamespace: split(split(serviceBus.properties.serviceBusEndpoint, '/')[2], ':')[0]
     SERVICE_BUS_CREATE_VM_QUEUE_NAME: serviceBusCreateVmQueue.name
   }
 }
