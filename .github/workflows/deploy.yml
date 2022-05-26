@@ -95,7 +95,6 @@ jobs:
       - name: Publish function app
         run: |
           set -eu
-          ls "${{ runner.temp }}"
           echo "Deploying function..."
-          az functionapp deployment source config-zip --src "${{ runner.temp }}/functionapp/functionapp.zip" --resource-group "${{ env.RESOURCE_GROUP_NAME }}" --name "${{ secrets.FUNCTION_APP_NAME }}"
+          az functionapp deployment source config-zip --src "${{ runner.temp }}/functionapp.zip" --resource-group "${{ env.RESOURCE_GROUP_NAME }}" --name "${{ secrets.FUNCTION_APP_NAME }}"
           echo "Script complete."
