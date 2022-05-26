@@ -1,7 +1,6 @@
 ﻿using LanguageExt.Common;
 using Microsoft.AspNetCore.Mvc;
 using System;
-using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -39,12 +38,7 @@ public static class ErrorModule
             ["message"] = actionableError.Message
         };
 
-        var serializerOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
-        {
-            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-        };
-
-        var errorJsonString = errorJson.ToJsonString(serializerOptions);
+        var errorJsonString = errorJson.SerializeToString();
 
         return actionableError switch
         {

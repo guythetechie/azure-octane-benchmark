@@ -6,6 +6,7 @@ using LanguageExt.Common;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System;
+using System.Threading.Tasks;
 
 namespace functionapp;
 
@@ -77,6 +78,11 @@ public static class ServiceProviderModule
         var queue = provider.GetRequiredService<VirtualMachineCreationQueueName>();
 
         return (virtualMachines, cancellationToken) => ServiceBusModule.QueueVirtualMachineCreation(client, queue, virtualMachines, cancellationToken);
+    }
+
+    public static CreateVirtualMachine GetCreateVirtualMachine(IServiceProvider provider)
+    {
+        return (virtualMachine, cancellationToken) => ValueTask.FromResult(Unit.Default);
     }
 
     private static ServiceBusClient GetServiceBusClientFromTokenCredential(IServiceProvider provider)

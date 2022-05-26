@@ -12,11 +12,11 @@ using System.Threading.Tasks;
 
 namespace functionapp;
 
-public class CreateJob
+public class JobCreator
 {
     private readonly QueueVirtualMachineCreation queueVirtualMachineCreation;
 
-    public CreateJob(QueueVirtualMachineCreation queueVirtualMachineCreation)
+    public JobCreator(QueueVirtualMachineCreation queueVirtualMachineCreation)
     {
         this.queueVirtualMachineCreation = queueVirtualMachineCreation;
     }
@@ -26,12 +26,12 @@ public class CreateJob
         [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest request, ILogger logger, CancellationToken cancellationToken)
     {
         return JsonObjectModule.FromStream(request.Body, cancellationToken)
-                               .Do(requestJson => logger.LogInformationUnit("Request payload: {CreateJobRequestJson}", requestJson))
+                               .Do(requestJson => logger.LogInformation("Request payload: {CreateJobRequestJson}", requestJson.SerializeToString()))
                                .Bind(DeserializeRequestJson)
                                .Map(GenerateVirtualMachines)
                                .Map(GenerateVirtualMachineQueuePayload)
-                               .Do(virtualMachines => logger.LogInformationUnit("Total virtual machines requested: {VirtualMachineCount}", virtualMachines.Length))
-                               .Do(_ => logger.LogInformationUnit("Queuing virtual machine creation..."))
+                               .Do(virtualMachines => logger.LogInformation("Total virtual machines requested: {VirtualMachineCount}", virtualMachines.Length))
+                               .Do(_ => logger.LogInformation("Queuing virtual machine creation..."))
                                .MapAsync(virtualMachines => queueVirtualMachineCreation(virtualMachines, cancellationToken))
                                .Map(_ => new NoContentResult() as IActionResult)
                                .IfFail(ErrorModule.ToActionResult)

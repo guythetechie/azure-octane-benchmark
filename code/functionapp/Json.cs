@@ -2,6 +2,7 @@
 using LanguageExt.Common;
 using System;
 using System.IO;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
@@ -163,5 +164,25 @@ public static class JsonObjectModule
                 .Bind(jsonObject => jsonObject is null
                                     ? FailAff<JsonObject>(JsonModule.GetJsonError("Stream has a null JSON object."))
                                     : SuccessAff(jsonObject));
+    }
+
+    public static Eff<JsonObject> FromBinaryData(BinaryData binaryData)
+    {
+        var serializerOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+
+        return Eff(() => JsonSerializer.Deserialize<JsonObject>(binaryData, serializerOptions))
+                .Bind(jsonObject => jsonObject is null
+                                    ? FailEff<JsonObject>(JsonModule.GetJsonError("JSON object is null."))
+                                    : SuccessEff(jsonObject));
+    }
+
+    public static string SerializeToString(this JsonObject jsonObject)
+    {
+        var serializerOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
+
+        return jsonObject.ToJsonString(serializerOptions);
     }
 }
