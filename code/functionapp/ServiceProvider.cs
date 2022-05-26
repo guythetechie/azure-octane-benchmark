@@ -82,7 +82,7 @@ public static class ServiceProviderModule
     private static ServiceBusClient GetServiceBusClientFromTokenCredential(IServiceProvider provider)
     {
         var configuration = provider.GetRequiredService<IConfiguration>();
-        var serviceBusNamespace = configuration.GetNonEmptyValue("ServiceBusConnection__fullyQualifiedNamespace");
+        var serviceBusNamespace = configuration.GetSection("ServiceBusConnection").GetSection("fullyQualifiedNamespace").Value;
         var credential = provider.GetRequiredService<TokenCredential>();
 
         return new ServiceBusClient(serviceBusNamespace, credential);
