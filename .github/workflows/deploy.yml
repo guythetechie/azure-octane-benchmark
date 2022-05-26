@@ -93,11 +93,9 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - name: Publish function app
-        uses: azure/CLI@v1
-        with:
-          inlineScript: |
-            set -eu
-            ls "${{ runner.temp }}"
-            echo "Deploying function..."
-            az functionapp deployment source config-zip --src "${{ runner.temp }}/functionapp/functionapp.zip" --resource-group "${{ env.RESOURCE_GROUP_NAME }}" --name "${{ secrets.FUNCTION_APP_NAME }}"
-            echo "Script complete."
+        run: |
+          set -eu
+          ls "${{ runner.temp }}"
+          echo "Deploying function..."
+          az functionapp deployment source config-zip --src "${{ runner.temp }}/functionapp/functionapp.zip" --resource-group "${{ env.RESOURCE_GROUP_NAME }}" --name "${{ secrets.FUNCTION_APP_NAME }}"
+          echo "Script complete."
