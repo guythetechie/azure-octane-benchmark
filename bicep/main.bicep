@@ -2,10 +2,14 @@ param storageAccountName string
 param location string = resourceGroup().location
 param tags object = {}
 param serviceBusName string
+param virtualNetworkName string
 param logAnalyticsWorkspaceName string
 param applicationInsightsName string
 param appServicePlanName string
 param functionAppName string
+
+var bastionSubnetName = 'AzureBastionSubnet'
+var virtualMachineSubnetName = 'vm-subnet'
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2021-09-01' = {
   name: storageAccountName
@@ -71,6 +75,76 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' = {
   }
 }
 
+resource virtualNetwork 'Microsoft.Network/virtualNetworks@2021-05-01' = {
+  name: virtualNetworkName
+  location: location
+  tags: tags
+  properties: {
+    addressSpace: {
+      addressPrefixes: [
+        '10.0.0.0/20'
+      ]
+    }
+    subnets: [
+      {
+        name: bastionSubnetName
+        properties: {
+          addressPrefix: '10.0.0.0/27'
+        }
+      }
+      {
+        name: virtualMachineSubnetName
+        properties: {
+          addressPrefix: '10.0.1.0/24'
+        }
+      }
+    ]
+  }
+}
+
+resource bastionSubnet 'Microsoft.Network/virtualNetworks/subnets@2021-05-01' existing = {
+  name: bastionSubnetName
+  parent: virtualNetwork
+}
+
+resource virtualMachineSubnet 'Microsoft.Network/virtualNetworks/subnets@2021-05-01' existing = {
+  name: virtualMachineSubnetName
+  parent: virtualNetwork
+}
+resource bastionPublicIP 'Microsoft.Network/publicIPAddresses@2021-05-01' = {
+  name: 'bastion-pip'
+  location: location
+  tags: tags
+  sku: {
+    name: 'Standard'
+  }
+  properties: {
+    publicIPAllocationMethod: 'Static'
+  }
+}
+
+resource bastion 'Microsoft.Network/bastionHosts@2021-05-01' = {
+  name: 'bastion'
+  location: location
+  tags: tags
+  properties: {
+    ipConfigurations: [
+      {
+        name: 'ip-configuration'
+        properties: {
+          privateIPAllocationMethod: 'Dynamic'
+          subnet: {
+            id: bastionSubnet.id
+          }
+          publicIPAddress: {
+            id: bastionPublicIP.id
+          }
+        }
+      }
+    ]
+  }
+}
+
 resource appServicePlan 'Microsoft.Web/serverfarms@2021-03-01' = {
   name: appServicePlanName
   location: location
@@ -103,6 +177,8 @@ resource functionAppSettings 'Microsoft.Web/sites/config@2021-02-01' = {
     AzureWebJobsStorage__blobServiceUri: storageAccount.properties.primaryEndpoints.blob
     FUNCTIONS_WORKER_RUNTIME: 'dotnet'
     FUNCTIONS_EXTENSION_VERSION: '~4'
+    VIRTUAL_MACHINE_RESOURCE_GROUP_NAME: resourceGroup().name
+    VIRTUAL_MACHINE_SUBNET_ID: virtualMachineSubnet.id
     ServiceBusConnection__fullyQualifiedNamespace: split(split(serviceBus.properties.serviceBusEndpoint, '/')[2], ':')[0]
     SERVICE_BUS_CREATE_VM_QUEUE_NAME: serviceBusCreateVmQueue.name
   }

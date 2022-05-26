@@ -26,6 +26,7 @@ public class Startup : FunctionsStartup
                 .AddSingleton(ServiceProviderModule.GetServiceBusClient)
                 .AddSingleton(ServiceProviderModule.GetVirtualMachineCreationQueueName)
                 .AddTransient(ServiceProviderModule.GetQueueVirtualMachineCreation)
+                .AddSingleton(ServiceProviderModule.GetArmClient)
                 .AddTransient(ServiceProviderModule.GetCreateVirtualMachine);
     }
 }

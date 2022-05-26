@@ -1,11 +1,15 @@
 ﻿using Azure.Core;
 using Azure.Identity;
 using Azure.Messaging.ServiceBus;
+using Azure.ResourceManager;
+using Azure.ResourceManager.Network;
+using Azure.ResourceManager.Resources;
 using LanguageExt;
 using LanguageExt.Common;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace functionapp;
@@ -80,9 +84,35 @@ public static class ServiceProviderModule
         return (virtualMachines, cancellationToken) => ServiceBusModule.QueueVirtualMachineCreation(client, queue, virtualMachines, cancellationToken);
     }
 
+    public static ArmClient GetArmClient(IServiceProvider provider)
+    {
+        var credential = provider.GetRequiredService<TokenCredential>();
+
+        return new ArmClient(credential);
+    }
+
     public static CreateVirtualMachine GetCreateVirtualMachine(IServiceProvider provider)
     {
-        return (virtualMachine, cancellationToken) => ValueTask.FromResult(Unit.Default);
+        return async (virtualMachine, cancellationToken) =>
+        {
+            var resourceGroup = await GetResourceGroup(provider, cancellationToken);
+
+            var configuration = provider.GetRequiredService<IConfiguration>();
+            var subnetId = configuration.GetNonEmptyValue("VIRTUAL_MACHINE_SUBNET_ID");
+            var subnetData = new SubnetData { Id = subnetId };
+            return await VirtualMachineModule.CreateVirtualMachine(resourceGroup, subnetData, virtualMachine, cancellationToken);
+        };
+    }
+
+    private static async ValueTask<ResourceGroupResource> GetResourceGroup(IServiceProvider provider, CancellationToken cancellationToken)
+    {
+        var armClient = provider.GetRequiredService<ArmClient>();
+        var subscription = await armClient.GetDefaultSubscriptionAsync(cancellationToken);
+
+        var configuration = provider.GetRequiredService<IConfiguration>();
+        var resourceGroupName = configuration.GetNonEmptyValue("VIRTUAL_MACHINE_RESOURCE_GROUP_NAME");
+
+        return await subscription.GetResourceGroupAsync(resourceGroupName, cancellationToken);
     }
 
     private static ServiceBusClient GetServiceBusClientFromTokenCredential(IServiceProvider provider)
