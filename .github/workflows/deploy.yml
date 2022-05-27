@@ -8,6 +8,7 @@ permissions:
   contents: read
   id-token: write
 env:
+  STORAGE_ACCOUNT_ARTIFACTS_CONTAINER_NAME: artifacts
   RESOURCE_GROUP_NAME: octane-benchmark-rg
   RESOURCE_GROUP_LOCATION: eastus
 jobs:
@@ -42,6 +43,7 @@ jobs:
               TemplateFile = "${{ github.workspace}}/bicep/main.bicep"
               TemplateParameterObject = @{
                 storageAccountName = "${{ secrets.STORAGE_ACCOUNT_NAME }}"
+                artifactStorageContainerName = "${{ env.STORAGE_ACCOUNT_ARTIFACTS_CONTAINER_NAME }}"
                 serviceBusName = "${{ secrets.SERVICE_BUS_NAME }}"
                 logAnalyticsWorkspaceName = "${{ secrets.LOG_ANALYTICS_WORKSPACE_NAME }}"
                 applicationInsightsName = "${{ secrets.APPLICATION_INSIGHTS_NAME }}"
@@ -55,6 +57,51 @@ jobs:
 
             Write-Information "Execution complete."
           azPSVersion: "latest"
+  package-benchmark-app:
+    name: Package benchmark app
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v3
+      - name: Create benchmark app artifact
+        run: |
+          set -eu
+          echo "Publishing benchmark app..."
+          dotnet publish "${{ github.workspace }}/code/benchmark/benchmark.csproj" --configuration "Release" --runtime "win-x64" --self-contained "true" --output "${{ runner.temp }}/benchmark"
+          
+          echo "Zipping function app..."
+          7z a "${{ runner.temp }}/benchmark.zip" "${{ runner.temp }}/benchmark/*"
+
+          echo "Script complete."
+      - name: Package benchmark app artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: benchmark
+          path: "${{ runner.temp }}/benchmark.zip"
+  upload-benchmark-app-to-storage:
+    name: Upload benchmark app to storage
+    needs:
+      - package-benchmark-app
+      - deploy-infrastructure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download benchmark app artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: benchmark
+          path: ${{ runner.temp }}
+      - name: Logon to Azure
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Publish function app
+        run: |
+          set -eu
+          echo "Uploading benchmark artifact..."
+          az storage blob upload --account-name "${{ secrets.STORAGE_ACCOUNT_NAME }}" --container-name "${{ env.STORAGE_ACCOUNT_ARTIFACTS_CONTAINER_NAME }}" --name benchmark.zip --file "${{ runner.temp }}/benchmark.zip"
+          echo "Script complete."
   package-function-app:
     name: Package function app
     runs-on: ubuntu-latest

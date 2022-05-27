@@ -1,4 +1,5 @@
 param storageAccountName string
+param artifactStorageContainerName string
 param location string = resourceGroup().location
 param tags object = {}
 param serviceBusName string
@@ -25,16 +26,15 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2021-09-01' = {
   }
 }
 
-resource storageTableServices 'Microsoft.Storage/storageAccounts/tableServices@2021-09-01' = {
+resource storageBlobServices 'Microsoft.Storage/storageAccounts/blobServices@2021-09-01' = {
   name: 'default'
   parent: storageAccount
 }
 
-resource storageJobTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2021-09-01' = {
-  name: 'jobs'
-  parent: storageTableServices
+resource artifactStorageContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2021-09-01' = {
+  name: artifactStorageContainerName
+  parent: storageBlobServices
 }
-
 resource serviceBus 'Microsoft.ServiceBus/namespaces@2021-11-01' = {
   name: serviceBusName
   location: location

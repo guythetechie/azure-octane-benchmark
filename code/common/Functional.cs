@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 using static LanguageExt.Prelude;
 
-namespace functionapp;
+namespace common;
 
 public static class EffModule
 {
@@ -41,10 +41,10 @@ public static class AffModule
         });
     }
 
-    public static Aff<T> Do<T>(this Aff<T> aff, Func<T, ValueTask<Unit>> action)
+    public static Aff<T> Do<T>(this Aff<T> aff, Func<T, ValueTask<Unit>> f)
     {
 #pragma warning disable CA1806 // Do not ignore method results
-        return aff.Do(t => Aff(() => action(t)));
+        return aff.Do(t => f(t).ToAff());
 #pragma warning restore CA1806 // Do not ignore method results
     }
 }

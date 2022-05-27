@@ -4,6 +4,7 @@ using Azure.ResourceManager.Compute.Models;
 using Azure.ResourceManager.Network;
 using Azure.ResourceManager.Network.Models;
 using Azure.ResourceManager.Resources;
+using common;
 using LanguageExt;
 using System;
 using System.Linq;

@@ -4,8 +4,8 @@ using Azure.Messaging.ServiceBus;
 using Azure.ResourceManager;
 using Azure.ResourceManager.Network;
 using Azure.ResourceManager.Resources;
+using common;
 using LanguageExt;
-using LanguageExt.Common;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -155,40 +155,5 @@ public static class ServiceProviderModule
         var credential = provider.GetRequiredService<TokenCredential>();
 
         return new ServiceBusClient(serviceBusNamespace, credential);
-    }
-
-    private static Option<T> GetOptionalService<T>(this IServiceProvider provider)
-    {
-        var service = provider.GetService<T>();
-
-        return service is null ? Prelude.None : service;
-    }
-
-    private static NonEmptyString GetNonEmptyValue(this IConfiguration configuration, string key)
-    {
-        return configuration.TryGetNonEmptyValue(key)
-                            .Run()
-                            .ThrowIfFail();
-    }
-
-    private static Eff<NonEmptyString> TryGetNonEmptyValue(this IConfiguration configuration, string key)
-    {
-        return configuration.TryGetValue(key)
-                            .Bind(value => string.IsNullOrWhiteSpace(value)
-                                            ? Prelude.FailEff<NonEmptyString>(Error.New($"Configuration key '{key}' has a null, empty or whitespace value."))
-                                            : Prelude.SuccessEff(new NonEmptyString(value)));
-    }
-
-    private static Eff<string> TryGetValue(this IConfiguration configuration, string key)
-    {
-        return configuration.GetOptionalValue(key)
-                            .ToEff(Error.New($"Could not find '{key}' in configuration."));
-    }
-
-    private static Option<string> GetOptionalValue(this IConfiguration configuration, string key)
-    {
-        var section = configuration.GetSection(key);
-
-        return section.Exists() ? section.Value : Prelude.None;
     }
 }
