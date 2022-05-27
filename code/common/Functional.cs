@@ -22,6 +22,13 @@ public static class EffModule
             return Unit.Default;
         });
     }
+
+    public static Aff<T> Do<T>(this Eff<T> eff, Func<T, ValueTask<Unit>> f)
+    {
+#pragma warning disable CA1806 // Do not ignore method results
+        return eff.Do(t => f(t).ToAff());
+#pragma warning restore CA1806 // Do not ignore method results
+    }
 }
 
 public static class AffModule

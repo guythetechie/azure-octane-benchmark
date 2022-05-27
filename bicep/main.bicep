@@ -112,39 +112,40 @@ resource virtualMachineSubnet 'Microsoft.Network/virtualNetworks/subnets@2021-05
   name: virtualMachineSubnetName
   parent: virtualNetwork
 }
-resource bastionPublicIP 'Microsoft.Network/publicIPAddresses@2021-05-01' = {
-  name: 'bastion-pip'
-  location: location
-  tags: tags
-  sku: {
-    name: 'Standard'
-  }
-  properties: {
-    publicIPAllocationMethod: 'Static'
-  }
-}
 
-resource bastion 'Microsoft.Network/bastionHosts@2021-05-01' = {
-  name: bastionName
-  location: location
-  tags: tags
-  properties: {
-    ipConfigurations: [
-      {
-        name: 'ip-configuration'
-        properties: {
-          privateIPAllocationMethod: 'Dynamic'
-          subnet: {
-            id: bastionSubnet.id
-          }
-          publicIPAddress: {
-            id: bastionPublicIP.id
-          }
-        }
-      }
-    ]
-  }
-}
+// resource bastionPublicIP 'Microsoft.Network/publicIPAddresses@2021-05-01' = {
+//   name: '${bastionName}-pip'
+//   location: location
+//   tags: tags
+//   sku: {
+//     name: 'Standard'
+//   }
+//   properties: {
+//     publicIPAllocationMethod: 'Static'
+//   }
+// }
+
+// resource bastion 'Microsoft.Network/bastionHosts@2021-05-01' = {
+//   name: bastionName
+//   location: location
+//   tags: tags
+//   properties: {
+//     ipConfigurations: [
+//       {
+//         name: 'ip-configuration'
+//         properties: {
+//           privateIPAllocationMethod: 'Dynamic'
+//           subnet: {
+//             id: bastionSubnet.id
+//           }
+//           publicIPAddress: {
+//             id: bastionPublicIP.id
+//           }
+//         }
+//       }
+//     ]
+//   }
+// }
 
 resource appServicePlan 'Microsoft.Web/serverfarms@2021-03-01' = {
   name: appServicePlanName
