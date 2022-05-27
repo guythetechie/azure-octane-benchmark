@@ -3,6 +3,8 @@ using LanguageExt.Common;
 using System;
 using System.Threading.Tasks;
 
+using static LanguageExt.Prelude;
+
 namespace functionapp;
 
 public static class EffModule
@@ -37,5 +39,12 @@ public static class AffModule
             action(t);
             return Unit.Default;
         });
+    }
+
+    public static Aff<T> Do<T>(this Aff<T> aff, Func<T, ValueTask<Unit>> action)
+    {
+#pragma warning disable CA1806 // Do not ignore method results
+        return aff.Do(t => Aff(() => action(t)));
+#pragma warning restore CA1806 // Do not ignore method results
     }
 }

@@ -32,7 +32,7 @@ public class JobCreator
                                .Map(GenerateVirtualMachineQueuePayload)
                                .Do(virtualMachines => logger.LogInformation("Total virtual machines requested: {VirtualMachineCount}", virtualMachines.Length))
                                .Do(_ => logger.LogInformation("Queuing virtual machine creation..."))
-                               .MapAsync(virtualMachines => queueVirtualMachineCreation(virtualMachines, cancellationToken))
+                               .Do(virtualMachines => queueVirtualMachineCreation(virtualMachines, cancellationToken))
                                .Map(_ => new NoContentResult() as IActionResult)
                                .IfFail(ErrorModule.ToActionResult)
                                .RunAndThrowIfFail()

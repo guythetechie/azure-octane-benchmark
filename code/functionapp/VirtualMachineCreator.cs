@@ -16,10 +16,12 @@ namespace functionapp;
 public class VirtualMachineCreator
 {
     private readonly CreateVirtualMachine createVirtualMachine;
+    private readonly QueueVirtualMachineDeletion queueVirtualMachineDeletion;
 
-    public VirtualMachineCreator(CreateVirtualMachine createVirtualMachine)
+    public VirtualMachineCreator(CreateVirtualMachine createVirtualMachine, QueueVirtualMachineDeletion queueVirtualMachineDeletion)
     {
         this.createVirtualMachine = createVirtualMachine;
+        this.queueVirtualMachineDeletion = queueVirtualMachineDeletion;
     }
 
     [FunctionName("create-virtual-machine")]
@@ -29,7 +31,9 @@ public class VirtualMachineCreator
                               .Do(requestJson => logger.LogInformation("Request payload: {CreateVirtualMachineRequestJson}", requestJson.SerializeToString()))
                               .Bind(DeserializeToVirtualMachine)
                               .Do(_ => logger.LogInformation("Creating virtual machine..."))
-                              .MapAsync(vm => createVirtualMachine(vm, cancellationToken))
+                              .Do(virtualMachine => createVirtualMachine(virtualMachine, cancellationToken))
+                              .Do(_ => logger.LogInformation("Queuing virtual machine for deletion..."))
+                              .Do(virtualMachine => queueVirtualMachineDeletion(virtualMachine.Name, cancellationToken))
                               .Do(_ => logger.LogInformation("Completing service bus message..."))
                               .MapAsync(async _ =>
                               {

@@ -25,8 +25,11 @@ public class Startup : FunctionsStartup
                 .AddSingleton(ServiceProviderModule.GetTokenCredential)
                 .AddSingleton(ServiceProviderModule.GetServiceBusClient)
                 .AddSingleton(ServiceProviderModule.GetVirtualMachineCreationQueueName)
+                .AddSingleton(ServiceProviderModule.GetVirtualMachineDeletionQueueName)
                 .AddTransient(ServiceProviderModule.GetQueueVirtualMachineCreation)
+                .AddTransient(ServiceProviderModule.GetQueueVirtualMachineDeletion)
                 .AddSingleton(ServiceProviderModule.GetArmClient)
-                .AddTransient(ServiceProviderModule.GetCreateVirtualMachine);
+                .AddTransient(ServiceProviderModule.GetCreateVirtualMachine)
+                .AddTransient(ServiceProviderModule.GetDeleteVirtualMachine);
     }
 }

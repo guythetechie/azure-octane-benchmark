@@ -29,6 +29,8 @@ public delegate ValueTask<Unit> QueueVirtualMachineCreation(Seq<(VirtualMachine 
 
 public delegate ValueTask<Unit> CreateVirtualMachine(VirtualMachine virtualMachine, CancellationToken cancellationToken);
 
+public delegate ValueTask<Unit> QueueVirtualMachineDeletion(VirtualMachineName virtualMachineName, CancellationToken cancellationToken);
+
 public delegate ValueTask<Unit> DeleteVirtualMachine(VirtualMachineName virtualMachineName, CancellationToken cancellationToken);
 
 public static class VirtualMachineModule
@@ -80,6 +82,7 @@ public static class VirtualMachineModule
                 OSDisk = new OSDisk(DiskCreateOptionTypes.FromImage)
                 {
                     OSType = OperatingSystemTypes.Windows,
+                    Name = $"{virtualMachine.Name}-osdisk",
                     ManagedDisk = new ManagedDiskParameters
                     {
                         StorageAccountType = StorageAccountTypes.StandardLRS
@@ -104,6 +107,10 @@ public static class VirtualMachineModule
     {
         var virtualMachineResponse = await resourceGroup.GetVirtualMachineAsync(virtualMachineName, cancellationToken: cancellationToken);
         await virtualMachineResponse.Value.DeleteAsync(WaitUntil.Completed, forceDeletion: true, cancellationToken);
+
+        var osDiskName = virtualMachineResponse.Value.Data.StorageProfile.OSDisk.Name;
+        var osDiskResponse = await resourceGroup.GetDiskAsync(osDiskName, cancellationToken: cancellationToken);
+        await osDiskResponse.Value.DeleteAsync(WaitUntil.Started, cancellationToken);
 
         var networkInterfaceName = virtualMachineResponse.Value.Data.NetworkProfile.NetworkInterfaces.First().Id.Split('/').Last();
         var networkInterfaceResponse = await resourceGroup.GetNetworkInterfaceAsync(networkInterfaceName, cancellationToken: cancellationToken);

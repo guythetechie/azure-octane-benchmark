@@ -14,6 +14,11 @@ public record VirtualMachineCreationQueueName : NonEmptyString
     public VirtualMachineCreationQueueName(string value) : base(value) { }
 }
 
+public record VirtualMachineDeletionQueueName : NonEmptyString
+{
+    public VirtualMachineDeletionQueueName(string value) : base(value) { }
+}
+
 public static class ServiceBusModule
 {
     public static async ValueTask<Unit> QueueVirtualMachineCreation(ServiceBusClient client, VirtualMachineCreationQueueName queueName, Seq<(VirtualMachine VirtualMachine, DateTimeOffset EnqueueAt)> virtualMachines, CancellationToken cancellationToken)
@@ -42,6 +47,28 @@ public static class ServiceBusModule
         }
 
         return Unit.Default;
+    }
+
+    public static async ValueTask<Unit> QueueVirtualMachineDeletion(ServiceBusClient client, VirtualMachineDeletionQueueName queueName, VirtualMachineName virtualMachineName, CancellationToken cancellationToken)
+    {
+        var message = CreateMessage(virtualMachineName);
+
+        var sender = client.CreateSender(queueName);
+        await sender.SendMessageAsync(message, cancellationToken);
+
+        return Unit.Default;
+    }
+
+    private static ServiceBusMessage CreateMessage(VirtualMachineName virtualMachineName)
+    {
+        var jsonObject = new JsonObject()
+        {
+            ["virtualMachineName"] = virtualMachineName.ToString(),
+        };
+
+        var messageBytes = JsonSerializer.SerializeToUtf8Bytes(jsonObject);
+
+        return new ServiceBusMessage(messageBytes);
     }
 
     private static ServiceBusMessage CreateMessage(VirtualMachine virtualMachine, DateTimeOffset enqueueAt)
