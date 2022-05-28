@@ -34,7 +34,7 @@ public class VirtualMachineCreator
                               .Do(_ => logger.LogInformation("Creating virtual machine..."))
                               .Do(virtualMachine => createVirtualMachine(virtualMachine, cancellationToken))
                               .Do(_ => logger.LogInformation("Queuing virtual machine for Octane benchmark..."))
-                              .Do(virtualMachine => queueOctaneBenchmark(virtualMachine.Name, cancellationToken))
+                              .Do(virtualMachine => queueOctaneBenchmark(virtualMachine, cancellationToken))
                               .Do(_ => logger.LogInformation("Completing service bus message..."))
                               .MapAsync(async _ =>
                               {

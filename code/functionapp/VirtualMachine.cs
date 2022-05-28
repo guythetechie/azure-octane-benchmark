@@ -14,7 +14,6 @@ using System.Threading.Tasks;
 
 namespace functionapp;
 
-
 public record BenchmarkExecutableUri : UriRecord
 {
     public BenchmarkExecutableUri(string value) : base(value) { }
@@ -34,9 +33,9 @@ public delegate ValueTask<Unit> QueueVirtualMachineCreation(Seq<(VirtualMachine 
 
 public delegate ValueTask<Unit> CreateVirtualMachine(VirtualMachine virtualMachine, CancellationToken cancellationToken);
 
-public delegate ValueTask<Unit> QueueOctaneBenchmark(VirtualMachineName virtualMachineName, CancellationToken cancellationToken);
+public delegate ValueTask<Unit> QueueOctaneBenchmark(VirtualMachine virtualMachine, CancellationToken cancellationToken);
 
-public delegate ValueTask<Unit> RunOctaneBenchmark(VirtualMachineName virtualMachineName, DiagnosticId diagnosticId, CancellationToken cancellationToken);
+public delegate ValueTask<Unit> RunOctaneBenchmark(VirtualMachine virtualMachine, DiagnosticId diagnosticId, CancellationToken cancellationToken);
 
 public delegate ValueTask<Unit> QueueVirtualMachineDeletion(VirtualMachineName virtualMachineName, CancellationToken cancellationToken);
 
@@ -112,17 +111,15 @@ public static class VirtualMachineModule
         return Unit.Default;
     }
 
-    public static async ValueTask<Unit> RunOctaneBenchmark(Base64Script base64Script, BenchmarkExecutableUri benchmarkUri, DiagnosticId diagnosticId, ApplicationInsightsConnectionString applicationInsightsConnectionString, ResourceGroupResource resourceGroup, VirtualMachineName virtualMachineName, CancellationToken cancellationToken)
+    public static async ValueTask<Unit> RunOctaneBenchmark(Base64Script base64Script, BenchmarkExecutableUri benchmarkUri, DiagnosticId diagnosticId, ApplicationInsightsConnectionString applicationInsightsConnectionString, ResourceGroupResource resourceGroup, VirtualMachine virtualMachine, CancellationToken cancellationToken)
     {
-        var virtualMachineResponse = await resourceGroup.GetVirtualMachineAsync(virtualMachineName, cancellationToken: cancellationToken);
-        var virtualMachine = virtualMachineResponse.Value;
-
         var input = new RunCommandInput("RunPowerShellScript")
         {
             Parameters =
             {
                 new RunCommandInputParameter("BenchmarkDownloadUri", benchmarkUri),
                 new RunCommandInputParameter("DiagnosticId", diagnosticId),
+                new RunCommandInputParameter("VirtualMachineSku", virtualMachine.Sku),
                 new RunCommandInputParameter("ApplicationInsightsConnectionString", applicationInsightsConnectionString)
             },
             Script =
@@ -131,29 +128,45 @@ public static class VirtualMachineModule
             }
         };
 
-        await virtualMachine.RunCommandAsync(WaitUntil.Completed, input, cancellationToken);
-
-        return Unit.Default;
+        return await resourceGroup.GetVirtualMachineAsync(virtualMachine.Name, cancellationToken: cancellationToken)
+                                  .MapAsync(response => response.Value.RunCommandAsync(WaitUntil.Completed, input, cancellationToken))
+                                  .ToUnit();
     }
 
     public static async ValueTask<Unit> DeleteVirtualMachine(ResourceGroupResource resourceGroup, VirtualMachineName virtualMachineName, CancellationToken cancellationToken)
     {
-        var virtualMachineResponse = await resourceGroup.GetVirtualMachineAsync(virtualMachineName, cancellationToken: cancellationToken);
-        await virtualMachineResponse.Value.DeleteAsync(WaitUntil.Completed, forceDeletion: true, cancellationToken);
+        var getVirtualMachineResource = () => resourceGroup.GetVirtualMachineAsync(virtualMachineName, cancellationToken: cancellationToken)
+                                                           .Map(response => response.Value);
 
-        var osDiskName = virtualMachineResponse.Value.Data.StorageProfile.OSDisk.Name;
-        var osDiskResponse = await resourceGroup.GetDiskAsync(osDiskName, cancellationToken: cancellationToken);
-        await osDiskResponse.Value.DeleteAsync(WaitUntil.Started, cancellationToken);
+        var deleteVirtualMachine = (VirtualMachineResource virtualMachineResource) => virtualMachineResource.DeleteAsync(WaitUntil.Completed, forceDeletion: true, cancellationToken)
+                                                                                                            .ToUnitValueTask();
 
-        var networkInterfaceName = virtualMachineResponse.Value.Data.NetworkProfile.NetworkInterfaces.First().Id.Split('/').Last();
-        var networkInterfaceResponse = await resourceGroup.GetNetworkInterfaceAsync(networkInterfaceName, cancellationToken: cancellationToken);
-        await networkInterfaceResponse.Value.DeleteAsync(WaitUntil.Started, cancellationToken);
+        var deleteDisk = (VirtualMachineResource virtualMachineResource) =>
+        {
+            var osDiskName = virtualMachineResource.Data.StorageProfile.OSDisk.Name;
 
-        return Unit.Default;
-    }
+            return resourceGroup.GetDiskAsync(osDiskName, cancellationToken: cancellationToken)
+                                .Map(osDiskResponse => osDiskResponse.Value.DeleteAsync(WaitUntil.Started, cancellationToken))
+                                .ToUnitValueTask();
 
-    internal static Task<ValueTask<Unit>> RunOctaneBenchmark(ResourceGroupResource resourceGroup, VirtualMachineName virtualMachineName, CancellationToken cancellationToken)
-    {
-        throw new NotImplementedException();
+        };
+
+        var deleteNetworkInterface = (VirtualMachineResource virtualMachineResource) =>
+        {
+            var networkInterfaceName = virtualMachineResource.Data.NetworkProfile.NetworkInterfaces.First().Id
+                                                                                                   .Split('/')
+                                                                                                   .Last();
+
+            return resourceGroup.GetNetworkInterfaceAsync(networkInterfaceName, cancellationToken: cancellationToken)
+                                .Map(networkInterfaceResponse => networkInterfaceResponse.Value.DeleteAsync(WaitUntil.Started, cancellationToken))
+                                .ToUnitValueTask();
+
+        };
+
+        return await getVirtualMachineResource().ToAff()
+                                                .Do(deleteVirtualMachine)
+                                                .Do(deleteDisk)
+                                                .Do(deleteNetworkInterface)
+                                                .RunUnit();
     }
 }

@@ -55,51 +55,79 @@ public static class ServiceBusModule
         return Unit.Default;
     }
 
-    public static async ValueTask<Unit> QueueOctaneBenchmark(ServiceBusClient client, OctaneBenchmarkQueueName queueName, VirtualMachineName virtualMachineName, CancellationToken cancellationToken)
+    public static async ValueTask<Unit> QueueOctaneBenchmark(ServiceBusClient client, OctaneBenchmarkQueueName queueName, VirtualMachine virtualMachine, CancellationToken cancellationToken)
     {
-        var message = CreateMessage(virtualMachineName);
+        var message = CreateMessage(virtualMachine);
 
-        var sender = client.CreateSender(queueName);
-        await sender.SendMessageAsync(message, cancellationToken);
-
-        return Unit.Default;
+        return await SendMessage(client, queueName, message, cancellationToken);
     }
 
     public static async ValueTask<Unit> QueueVirtualMachineDeletion(ServiceBusClient client, VirtualMachineDeletionQueueName queueName, VirtualMachineName virtualMachineName, CancellationToken cancellationToken)
     {
         var message = CreateMessage(virtualMachineName);
 
-        var sender = client.CreateSender(queueName);
-        await sender.SendMessageAsync(message, cancellationToken);
+        return await SendMessage(client, queueName, message, cancellationToken);
+    }
 
-        return Unit.Default;
+    private static ServiceBusMessage CreateMessage(VirtualMachine virtualMachine)
+    {
+        var jsonObject = Serialize(virtualMachine);
+
+        return CreateMessage(jsonObject);
+    }
+
+    private static ServiceBusMessage CreateMessage(VirtualMachine virtualMachine, DateTimeOffset enqueueAt)
+    {
+        var jsonObject = Serialize(virtualMachine);
+
+        return CreateMessage(jsonObject, enqueueAt);
     }
 
     private static ServiceBusMessage CreateMessage(VirtualMachineName virtualMachineName)
     {
-        var jsonObject = new JsonObject()
-        {
-            ["virtualMachineName"] = virtualMachineName.ToString(),
-        };
+        var jsonObject = Serialize(virtualMachineName);
 
+        return CreateMessage(jsonObject);
+    }
+
+    private static JsonObject Serialize(VirtualMachine virtualMachine)
+    {
+        return new JsonObject()
+        {
+            ["virtualMachineName"] = virtualMachine.Name.ToString(),
+            ["virtualMachineSku"] = virtualMachine.Sku.ToString()
+        };
+    }
+
+    private static JsonObject Serialize(VirtualMachineName virtualMachineName)
+    {
+        return new JsonObject()
+        {
+            ["virtualMachineName"] = virtualMachineName.ToString()
+        };
+    }
+
+    private static ServiceBusMessage CreateMessage(JsonObject jsonObject)
+    {
         var messageBytes = JsonSerializer.SerializeToUtf8Bytes(jsonObject);
 
         return new ServiceBusMessage(messageBytes);
     }
 
-    private static ServiceBusMessage CreateMessage(VirtualMachine virtualMachine, DateTimeOffset enqueueAt)
+    private static ServiceBusMessage CreateMessage(JsonObject jsonObject, DateTimeOffset enqueueAt)
     {
-        var jsonObject = new JsonObject()
-        {
-            ["virtualMachineName"] = virtualMachine.Name.ToString(),
-            ["virtualMachineSku"] = virtualMachine.Sku.ToString()
-        };
-
         var messageBytes = JsonSerializer.SerializeToUtf8Bytes(jsonObject);
 
         return new ServiceBusMessage(messageBytes)
         {
             ScheduledEnqueueTime = enqueueAt
         };
+    }
+
+    private static async ValueTask<Unit> SendMessage(ServiceBusClient client, string queueName, ServiceBusMessage message, CancellationToken cancellationToken)
+    {
+        var sender = client.CreateSender(queueName);
+
+        return await sender.SendMessageAsync(message, cancellationToken).ToUnitValueTask();
     }
 }

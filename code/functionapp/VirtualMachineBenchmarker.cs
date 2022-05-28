@@ -69,13 +69,13 @@ public class VirtualMachineBenchmarker
         });
 
         await tryGetJsonObject().Do(jsonObject => logger.LogInformation("Request payload: {RunOctaneBenchmarkRequestJson}", jsonObject.SerializeToString()))
-                                .Bind(GetVirtualMachineName)
+                                .Bind(GetVirtualMachine)
                                 .Do(_ => logger.LogInformation("Getting diagnostic ID..."))
-                                .Bind(virtualMachineName => tryGetDiagnosticId().Map(diagnosticId => (virtualMachineName, diagnosticId)))
+                                .Bind(virtualMachine => tryGetDiagnosticId().Map(diagnosticId => (virtualMachine, diagnosticId)))
                                 .Do(_ => logger.LogInformation("Running Octane benchmark..."))
-                                .Do(tuple => runOctaneBenchmark(tuple.virtualMachineName, tuple.diagnosticId, cancellationToken))
+                                .Do(tuple => runOctaneBenchmark(tuple.virtualMachine, tuple.diagnosticId, cancellationToken))
                                 .Do(_ => logger.LogInformation("Queueing virtual machine for deletion..."))
-                                .Do(tuple => queueVirtualMachineDeletion(tuple.virtualMachineName, cancellationToken))
+                                .Do(tuple => queueVirtualMachineDeletion(tuple.virtualMachine.Name, cancellationToken))
                                 .Do(_ => logger.LogInformation("Completing service bus message.."))
                                 .Iter(_ => completeMessage())
                                 .Timeout(TimeSpan.FromMinutes(4.5))
@@ -85,9 +85,12 @@ public class VirtualMachineBenchmarker
                                 .RunAndThrowIfFail();
     }
 
-    private static Eff<VirtualMachineName> GetVirtualMachineName(JsonObject jsonObject)
+    private static Eff<VirtualMachine> GetVirtualMachine(JsonObject jsonObject)
     {
         return from virtualMachineNameString in jsonObject.TryGetNonEmptyStringProperty("virtualMachineName")
-               select new VirtualMachineName(virtualMachineNameString);
+               let virtualMachineName = new VirtualMachineName(virtualMachineNameString)
+               from virtualMachineSkuString in jsonObject.TryGetNonEmptyStringProperty("virtualMachineSku")
+               let virtualMachineSku = new VirtualMachineSku(virtualMachineSkuString)
+               select new VirtualMachine(virtualMachineName, virtualMachineSku);
     }
 }

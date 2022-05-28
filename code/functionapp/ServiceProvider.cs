@@ -113,7 +113,7 @@ public static class ServiceProviderModule
 
         var queue = provider.GetRequiredService<OctaneBenchmarkQueueName>();
 
-        return (virtualMachineName, cancellationToken) => ServiceBusModule.QueueOctaneBenchmark(client, queue, virtualMachineName, cancellationToken);
+        return (virtualMachine, cancellationToken) => ServiceBusModule.QueueOctaneBenchmark(client, queue, virtualMachine, cancellationToken);
     }
 
     public static QueueVirtualMachineDeletion GetQueueVirtualMachineDeletion(IServiceProvider provider)
@@ -172,11 +172,11 @@ public static class ServiceProviderModule
         var rawApplicationInsightsConnectionString = configuration.GetNonEmptyValue("APPLICATIONINSIGHTS_CONNECTION_STRING");
         var applicationInsightsConnectionString = new ApplicationInsightsConnectionString(rawApplicationInsightsConnectionString);
 
-        return async (virtualMachineName, diagnosticId, cancellationToken) =>
+        return async (virtualMachine, diagnosticId, cancellationToken) =>
         {
             var resourceGroup = await GetResourceGroup(provider, cancellationToken);
 
-            return await VirtualMachineModule.RunOctaneBenchmark(benchmarkScript, benchmarkUri, diagnosticId, applicationInsightsConnectionString, resourceGroup, virtualMachineName, cancellationToken);
+            return await VirtualMachineModule.RunOctaneBenchmark(benchmarkScript, benchmarkUri, diagnosticId, applicationInsightsConnectionString, resourceGroup, virtualMachine, cancellationToken);
         };
     }
 
