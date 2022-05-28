@@ -71,8 +71,11 @@ public class JobCreator
     private static Seq<(VirtualMachine VirtualMachine, DateTimeOffset EnqueueAt)> GenerateVirtualMachineQueuePayload(Seq<VirtualMachine> virtualMachines)
     {
 #pragma warning disable CA5394 // Do not use insecure randomness
-        return virtualMachines.Map(virtualMachine => (virtualMachine, DateTimeOffset.UtcNow.AddSeconds(Random.Shared.NextDouble() * 60)));
+        // Goal is approximately 1 VM every 10 seconds
+        var enqueueTime = () => DateTimeOffset.UtcNow.AddSeconds(Random.Shared.NextDouble() * 10 * virtualMachines.Length);
 #pragma warning restore CA5394 // Do not use insecure randomness
+
+        return virtualMachines.Map(virtualMachine => (virtualMachine, enqueueTime()));
     }
 
     private record CreateJobRequest(Seq<(VirtualMachineSku Sku, uint Count)> VirtualMachines);

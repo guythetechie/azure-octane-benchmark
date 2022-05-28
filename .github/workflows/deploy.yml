@@ -51,6 +51,7 @@ jobs:
                 bastionName = "${{ secrets.BASTION_NAME }}"
                 functionAppName = "${{ secrets.FUNCTION_APP_NAME }}"
                 appServicePlanName = "${{ secrets.APP_SERVICE_PLAN_NAME }}"
+                Mode = "Full"
               }
             }
             New-AzResourceGroupDeployment @deploymentParameters

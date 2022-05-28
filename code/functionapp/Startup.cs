@@ -32,6 +32,7 @@ public class Startup : FunctionsStartup
                 .AddTransient(ServiceProviderModule.GetQueueVirtualMachineDeletion)
                 .AddSingleton(ServiceProviderModule.GetArmClient)
                 .AddTransient(ServiceProviderModule.GetCreateVirtualMachine)
+                .AddTransient(ServiceProviderModule.GetRunOctaneBenchmark)
                 .AddTransient(ServiceProviderModule.GetDeleteVirtualMachine);
     }
 }
