@@ -4,7 +4,10 @@ using Azure.Messaging.ServiceBus;
 using Azure.ResourceManager;
 using Azure.ResourceManager.Network;
 using Azure.ResourceManager.Resources;
+using Azure.Storage.Blobs;
+using Azure.Storage.Sas;
 using common;
+using Flurl;
 using LanguageExt;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -69,6 +72,13 @@ public static class ServiceProviderModule
         return new VirtualMachineCreationQueueName(configuration.GetNonEmptyValue("SERVICE_BUS_CREATE_VM_QUEUE_NAME"));
     }
 
+    public static OctaneBenchmarkQueueName GetOctaneBenchmarkQueueName(IServiceProvider provider)
+    {
+        var configuration = provider.GetRequiredService<IConfiguration>();
+
+        return new OctaneBenchmarkQueueName(configuration.GetNonEmptyValue("SERVICE_BUS_RUN_OCTANE_BENCHMARK_QUEUE_NAME"));
+    }
+
     public static VirtualMachineDeletionQueueName GetVirtualMachineDeletionQueueName(IServiceProvider provider)
     {
         var configuration = provider.GetRequiredService<IConfiguration>();
@@ -91,6 +101,21 @@ public static class ServiceProviderModule
         return (virtualMachines, cancellationToken) => ServiceBusModule.QueueVirtualMachineCreation(client, queue, virtualMachines, cancellationToken);
     }
 
+    public static QueueOctaneBenchmark GetQueueOctaneBenchmark(IServiceProvider provider)
+    {
+        var configuration = provider.GetRequiredService<IConfiguration>();
+
+        var client = configuration.TryGetNonEmptyValue("SERVICE_BUS_RUN_OCTANE_BENCHMARK_QUEUE_CONNECTION_STRING")
+                             .Map(connectionString => new ServiceBusClient(connectionString))
+                             .IfFail(_ => provider.GetRequiredService<ServiceBusClient>())
+                             .Run()
+                             .ThrowIfFail();
+
+        var queue = provider.GetRequiredService<OctaneBenchmarkQueueName>();
+
+        return (virtualMachineName, cancellationToken) => ServiceBusModule.QueueOctaneBenchmark(client, queue, virtualMachineName, cancellationToken);
+    }
+
     public static QueueVirtualMachineDeletion GetQueueVirtualMachineDeletion(IServiceProvider provider)
     {
         var configuration = provider.GetRequiredService<IConfiguration>();
@@ -103,7 +128,7 @@ public static class ServiceProviderModule
 
         var queue = provider.GetRequiredService<VirtualMachineDeletionQueueName>();
 
-        return (virtualMachine, cancellationToken) => ServiceBusModule.QueueVirtualMachineDeletion(client, queue, virtualMachine, cancellationToken);
+        return (virtualMachineName, cancellationToken) => ServiceBusModule.QueueVirtualMachineDeletion(client, queue, virtualMachineName, cancellationToken);
     }
 
     public static ArmClient GetArmClient(IServiceProvider provider)
@@ -124,6 +149,34 @@ public static class ServiceProviderModule
             var subnetData = new SubnetData { Id = subnetId };
 
             return await VirtualMachineModule.CreateVirtualMachine(resourceGroup, subnetData, virtualMachine, cancellationToken);
+        };
+    }
+
+    public static RunOctaneBenchmark GetRunOctaneBenchmark(IServiceProvider provider)
+    {
+        var configuration = provider.GetRequiredService<IConfiguration>();
+
+        var rawBenchmarkScript = configuration.GetNonEmptyValue("BASE_64_RUN_OCTANE_BENCHMARK_SCRIPT");
+        var benchmarkScript = new Base64Script(rawBenchmarkScript);
+
+        var storageAccountUrl = configuration.GetNonEmptyValue("AzureWebJobsStorage__blobServiceUri");
+        var artifactsContainerName = configuration.GetNonEmptyValue("STORAGE_ACCOUNT_ARTIFACT_CONTAINER_NAME");
+        var benchmarkZipFileName = "benchmark.zip";
+        var rawDownloadUri = new Uri(storageAccountUrl).AppendPathSegment(artifactsContainerName).AppendPathSegment(benchmarkZipFileName).ToUri();
+
+        var credential = provider.GetRequiredService<TokenCredential>();
+        var blobClient = new BlobClient(rawDownloadUri, credential);
+        var authenticatedDownloadUri = blobClient.GenerateSasUri(BlobSasPermissions.Read, DateTimeOffset.UtcNow.AddHours(1));
+        var benchmarkUri = new BenchmarkExecutableUri(authenticatedDownloadUri.ToString());
+
+        var rawApplicationInsightsConnectionString = configuration.GetNonEmptyValue("APPLICATIONINSIGHTS_CONNECTION_STRING");
+        var applicationInsightsConnectionString = new ApplicationInsightsConnectionString(rawApplicationInsightsConnectionString);
+
+        return async (virtualMachineName, diagnosticId, cancellationToken) =>
+        {
+            var resourceGroup = await GetResourceGroup(provider, cancellationToken);
+
+            return await VirtualMachineModule.RunOctaneBenchmark(benchmarkScript, benchmarkUri, diagnosticId, applicationInsightsConnectionString, resourceGroup, virtualMachineName, cancellationToken);
         };
     }
 

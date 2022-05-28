@@ -1,4 +1,4 @@
-using LanguageExt;
+using common;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.Extensions.Hosting;
@@ -18,14 +18,16 @@ public class Worker : BackgroundService
     private readonly ILogger logger;
     private readonly TelemetryClient telemetryClient;
     private readonly DiagnosticId diagnosticId;
+    private readonly VirtualMachineSku virtualMachineSku;
     private readonly EdgeDriverFactory edgeDriverFactory;
     private readonly IHostApplicationLifetime hostApplicationLifetime;
 
-    public Worker(ILogger<Worker> logger, TelemetryClient telemetryClient, DiagnosticId diagnosticId, EdgeDriverFactory edgeDriverFactory, IHostApplicationLifetime hostApplicationLifetime)
+    public Worker(ILogger<Worker> logger, TelemetryClient telemetryClient, DiagnosticId diagnosticId, VirtualMachineSku virtualMachineSku, EdgeDriverFactory edgeDriverFactory, IHostApplicationLifetime hostApplicationLifetime)
     {
         this.logger = logger;
         this.telemetryClient = telemetryClient;
         this.diagnosticId = diagnosticId;
+        this.virtualMachineSku = virtualMachineSku;
         this.edgeDriverFactory = edgeDriverFactory;
         this.hostApplicationLifetime = hostApplicationLifetime;
     }
@@ -36,6 +38,7 @@ public class Worker : BackgroundService
         {
             using var activity = new Activity("Octane.Benchmark");
             activity.SetParentId(diagnosticId);
+            activity.AddBaggage("VirtualMachineSku", virtualMachineSku);
 
             using var operation = telemetryClient.StartOperation<RequestTelemetry>(activity);
 
@@ -45,6 +48,7 @@ public class Worker : BackgroundService
         catch (Exception exception)
         {
             logger.LogCritical(exception, "");
+            Environment.ExitCode = -1;
             throw;
         }
         finally

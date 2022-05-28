@@ -49,6 +49,11 @@ resource serviceBusCreateVmQueue 'Microsoft.ServiceBus/namespaces/queues@2021-11
   parent: serviceBus
 }
 
+resource serviceBusRunOctaneBenchmarkQueue 'Microsoft.ServiceBus/namespaces/queues@2021-11-01' = {
+  name: 'run-octane-benchmark'
+  parent: serviceBus
+}
+
 resource serviceBusDeleteVmQueue 'Microsoft.ServiceBus/namespaces/queues@2021-11-01' = {
   name: 'delete-vm-queue'
   parent: serviceBus
@@ -177,13 +182,16 @@ resource functionAppSettings 'Microsoft.Web/sites/config@2021-02-01' = {
     APPLICATIONINSIGHTS_CONNECTION_STRING: applicationInsights.properties.ConnectionString
     AzureWebJobsDisableHomepage: 'true'
     AzureWebJobsStorage__blobServiceUri: storageAccount.properties.primaryEndpoints.blob
+    BASE_64_RUN_OCTANE_BENCHMARK_SCRIPT: loadFileAsBase64('../scripts/Run-OctaneBenchmark.ps1')
     FUNCTIONS_WORKER_RUNTIME: 'dotnet'
     FUNCTIONS_EXTENSION_VERSION: '~4'
     VIRTUAL_MACHINE_RESOURCE_GROUP_NAME: resourceGroup().name
     VIRTUAL_MACHINE_SUBNET_ID: virtualMachineSubnet.id
     ServiceBusConnection__fullyQualifiedNamespace: split(split(serviceBus.properties.serviceBusEndpoint, '/')[2], ':')[0]
     SERVICE_BUS_CREATE_VM_QUEUE_NAME: serviceBusCreateVmQueue.name
+    SERVICE_BUS_RUN_OCTANE_BENCHMARK_QUEUE_NAME: serviceBusRunOctaneBenchmarkQueue.name
     SERVICE_BUS_DELETE_VM_QUEUE_NAME: serviceBusDeleteVmQueue.name
+    STORAGE_ACCOUNT_ARTIFACT_CONTAINER_NAME: artifactStorageContainer.name
   }
 }
 

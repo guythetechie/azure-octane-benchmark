@@ -8,27 +8,35 @@ using common;
 using LanguageExt;
 using System;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace functionapp;
 
-public record VirtualMachineSku : NonEmptyString
+
+public record BenchmarkExecutableUri : UriRecord
 {
-    public VirtualMachineSku(string value) : base(value) { }
+    public BenchmarkExecutableUri(string value) : base(value) { }
 }
 
-public record VirtualMachineName : NonEmptyString
+public record ApplicationInsightsConnectionString : NonEmptyString
 {
-    public VirtualMachineName(string value) : base(value) { }
-
+    public ApplicationInsightsConnectionString(string value) : base(value) { }
 }
 
-public record VirtualMachine(VirtualMachineName Name, VirtualMachineSku Sku);
+public record Base64Script : NonEmptyString
+{
+    public Base64Script(string value) : base(value) { }
+}
 
 public delegate ValueTask<Unit> QueueVirtualMachineCreation(Seq<(VirtualMachine VirtualMachine, DateTimeOffset EnqueueAt)> virtualMachines, CancellationToken cancellationToken);
 
 public delegate ValueTask<Unit> CreateVirtualMachine(VirtualMachine virtualMachine, CancellationToken cancellationToken);
+
+public delegate ValueTask<Unit> QueueOctaneBenchmark(VirtualMachineName virtualMachineName, CancellationToken cancellationToken);
+
+public delegate ValueTask<Unit> RunOctaneBenchmark(VirtualMachineName virtualMachineName, DiagnosticId diagnosticId, CancellationToken cancellationToken);
 
 public delegate ValueTask<Unit> QueueVirtualMachineDeletion(VirtualMachineName virtualMachineName, CancellationToken cancellationToken);
 
@@ -104,6 +112,30 @@ public static class VirtualMachineModule
         return Unit.Default;
     }
 
+    public static async ValueTask<Unit> RunOctaneBenchmark(Base64Script base64Script, BenchmarkExecutableUri benchmarkUri, DiagnosticId diagnosticId, ApplicationInsightsConnectionString applicationInsightsConnectionString, ResourceGroupResource resourceGroup, VirtualMachineName virtualMachineName, CancellationToken cancellationToken)
+    {
+        var virtualMachineResponse = await resourceGroup.GetVirtualMachineAsync(virtualMachineName, cancellationToken: cancellationToken);
+        var virtualMachine = virtualMachineResponse.Value;
+
+        var input = new RunCommandInput("RunPowerShellScript")
+        {
+            Parameters =
+            {
+                new RunCommandInputParameter("BenchmarkDownloadUri", benchmarkUri),
+                new RunCommandInputParameter("DiagnosticId", diagnosticId),
+                new RunCommandInputParameter("ApplicationInsightsConnectionString", applicationInsightsConnectionString)
+            },
+            Script =
+            {
+                Encoding.UTF8.GetString(Convert.FromBase64String(base64Script))
+            }
+        };
+
+        await virtualMachine.RunCommandAsync(WaitUntil.Completed, input, cancellationToken);
+
+        return Unit.Default;
+    }
+
     public static async ValueTask<Unit> DeleteVirtualMachine(ResourceGroupResource resourceGroup, VirtualMachineName virtualMachineName, CancellationToken cancellationToken)
     {
         var virtualMachineResponse = await resourceGroup.GetVirtualMachineAsync(virtualMachineName, cancellationToken: cancellationToken);
@@ -118,5 +150,10 @@ public static class VirtualMachineModule
         await networkInterfaceResponse.Value.DeleteAsync(WaitUntil.Started, cancellationToken);
 
         return Unit.Default;
+    }
+
+    internal static Task<ValueTask<Unit>> RunOctaneBenchmark(ResourceGroupResource resourceGroup, VirtualMachineName virtualMachineName, CancellationToken cancellationToken)
+    {
+        throw new NotImplementedException();
     }
 }

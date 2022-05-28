@@ -30,7 +30,7 @@ public class VirtualMachineTerminator
                               .Do(requestJson => logger.LogInformation("Request payload: {DeleteVirtualMachineRequestJson}", requestJson.SerializeToString()))
                               .Bind(GetVirtualMachineName)
                               .Do(_ => logger.LogInformation("Deleting virtual machine..."))
-                              .MapAsync(virtualMachineName => deleteVirtualMachine(virtualMachineName, cancellationToken))
+                              .Do(virtualMachineName => deleteVirtualMachine(virtualMachineName, cancellationToken))
                               .Do(_ => logger.LogInformation("Completing service bus message..."))
                               .MapAsync(async _ =>
                               {

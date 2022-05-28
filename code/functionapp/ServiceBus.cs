@@ -15,6 +15,11 @@ public record VirtualMachineCreationQueueName : NonEmptyString
     public VirtualMachineCreationQueueName(string value) : base(value) { }
 }
 
+public record OctaneBenchmarkQueueName : NonEmptyString
+{
+    public OctaneBenchmarkQueueName(string value) : base(value) { }
+}
+
 public record VirtualMachineDeletionQueueName : NonEmptyString
 {
     public VirtualMachineDeletionQueueName(string value) : base(value) { }
@@ -46,6 +51,16 @@ public static class ServiceBusModule
                 throw new InvalidOperationException("Could not add message to batch. Payload might be too big.");
             }
         }
+
+        return Unit.Default;
+    }
+
+    public static async ValueTask<Unit> QueueOctaneBenchmark(ServiceBusClient client, OctaneBenchmarkQueueName queueName, VirtualMachineName virtualMachineName, CancellationToken cancellationToken)
+    {
+        var message = CreateMessage(virtualMachineName);
+
+        var sender = client.CreateSender(queueName);
+        await sender.SendMessageAsync(message, cancellationToken);
 
         return Unit.Default;
     }

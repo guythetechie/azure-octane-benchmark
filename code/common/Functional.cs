@@ -54,4 +54,9 @@ public static class AffModule
         return aff.Do(t => f(t).ToAff());
 #pragma warning restore CA1806 // Do not ignore method results
     }
+
+    public static Aff<Unit> Iter<T>(this Aff<T> aff, Func<T, ValueTask<Unit>> f)
+    {
+        return aff.Iter(t => f(t).ToAff());
+    }
 }

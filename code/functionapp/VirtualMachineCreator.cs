@@ -17,12 +17,12 @@ namespace functionapp;
 public class VirtualMachineCreator
 {
     private readonly CreateVirtualMachine createVirtualMachine;
-    private readonly QueueVirtualMachineDeletion queueVirtualMachineDeletion;
+    private readonly QueueOctaneBenchmark queueOctaneBenchmark;
 
-    public VirtualMachineCreator(CreateVirtualMachine createVirtualMachine, QueueVirtualMachineDeletion queueVirtualMachineDeletion)
+    public VirtualMachineCreator(CreateVirtualMachine createVirtualMachine, QueueOctaneBenchmark queueOctaneBenchmark)
     {
         this.createVirtualMachine = createVirtualMachine;
-        this.queueVirtualMachineDeletion = queueVirtualMachineDeletion;
+        this.queueOctaneBenchmark = queueOctaneBenchmark;
     }
 
     [FunctionName("create-virtual-machine")]
@@ -33,8 +33,8 @@ public class VirtualMachineCreator
                               .Bind(DeserializeToVirtualMachine)
                               .Do(_ => logger.LogInformation("Creating virtual machine..."))
                               .Do(virtualMachine => createVirtualMachine(virtualMachine, cancellationToken))
-                              .Do(_ => logger.LogInformation("Queuing virtual machine for deletion..."))
-                              .Do(virtualMachine => queueVirtualMachineDeletion(virtualMachine.Name, cancellationToken))
+                              .Do(_ => logger.LogInformation("Queuing virtual machine for Octane benchmark..."))
+                              .Do(virtualMachine => queueOctaneBenchmark(virtualMachine.Name, cancellationToken))
                               .Do(_ => logger.LogInformation("Completing service bus message..."))
                               .MapAsync(async _ =>
                               {

@@ -50,3 +50,21 @@ public abstract record UriRecord : NonEmptyString
 
     public Uri ToUri() => new(this.ToString(), UriKind.Absolute);
 }
+
+public record VirtualMachineSku : NonEmptyString
+{
+    public VirtualMachineSku(string value) : base(value) { }
+}
+
+public record VirtualMachineName : NonEmptyString
+{
+    public VirtualMachineName(string value) : base(value) { }
+
+}
+
+public record DiagnosticId : NonEmptyString
+{
+    public DiagnosticId(string value) : base(value) { }
+}
+
+public record VirtualMachine(VirtualMachineName Name, VirtualMachineSku Sku);

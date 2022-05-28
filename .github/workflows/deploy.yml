@@ -100,7 +100,7 @@ jobs:
         run: |
           set -eu
           echo "Uploading benchmark artifact..."
-          az storage blob upload --account-name "${{ secrets.STORAGE_ACCOUNT_NAME }}" --container-name "${{ env.STORAGE_ACCOUNT_ARTIFACTS_CONTAINER_NAME }}" --name benchmark.zip --file "${{ runner.temp }}/benchmark.zip"
+          az storage blob upload --account-name "${{ secrets.STORAGE_ACCOUNT_NAME }}" --container-name "${{ env.STORAGE_ACCOUNT_ARTIFACTS_CONTAINER_NAME }}" --name benchmark.zip --file "${{ runner.temp }}/benchmark.zip" --overwrite
           echo "Script complete."
   package-function-app:
     name: Package function app

@@ -22,4 +22,12 @@ internal static class ServiceProviderModule
 
         return new DiagnosticId(diagnosticId);
     }
+
+    public static VirtualMachineSku GetVirtualMachineSku(IServiceProvider provider)
+    {
+        var configuration = provider.GetRequiredService<IConfiguration>();
+        var sku = configuration.GetNonEmptyValue("VIRTUAL_MACHINE_SKU");
+
+        return new VirtualMachineSku(sku);
+    }
 }

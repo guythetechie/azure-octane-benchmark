@@ -34,7 +34,7 @@ public class EdgeDriverFactory : IAsyncDisposable
 
     public async ValueTask<EdgeDriver> CreateDriver(CancellationToken cancellationToken)
     {
-        var service = await lazyEdgeDriverService;
+        var service = await lazyEdgeDriverService.WithCancellation(cancellationToken);
 
         var options = new EdgeOptions();
         options.AddArgument("headless");
