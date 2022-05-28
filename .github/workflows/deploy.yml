@@ -41,7 +41,6 @@ jobs:
             $deploymentParameters = @{
               ResourceGroupName = "${{ env.RESOURCE_GROUP_NAME }}"
               TemplateFile = "${{ github.workspace}}/bicep/main.bicep"
-              Mode = "Complete"
               TemplateParameterObject = @{
                 storageAccountName = "${{ secrets.STORAGE_ACCOUNT_NAME }}"
                 artifactStorageContainerName = "${{ env.STORAGE_ACCOUNT_ARTIFACTS_CONTAINER_NAME }}"
@@ -53,6 +52,8 @@ jobs:
                 functionAppName = "${{ secrets.FUNCTION_APP_NAME }}"
                 appServicePlanName = "${{ secrets.APP_SERVICE_PLAN_NAME }}"
               }
+              Mode = "Complete"
+              Force = $true
             }
             New-AzResourceGroupDeployment @deploymentParameters
 
