@@ -176,6 +176,7 @@ public static class ServiceProviderModule
                 BlobContainerName = blobClient.BlobContainerName,
                 BlobName = blobClient.Name,
                 Resource = "b",
+                ExpiresOn = userDelegationKey.Value.SignedExpiresOn
             }
             from permissionedSasBuilder in SuccessEff(sasBuilder).Do(builder => builder.SetPermissions(BlobSasPermissions.Read | BlobSasPermissions.Write)).ToAff()
             let blobUriBuilder = new BlobUriBuilder(blobClient.Uri)
