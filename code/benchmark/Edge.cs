@@ -32,14 +32,17 @@ public class EdgeDriverFactory : IAsyncDisposable
         });
     }
 
-    public async ValueTask<EdgeDriver> CreateDriver(CancellationToken cancellationToken)
+    public Aff<EdgeDriver> CreateDriver(CancellationToken cancellationToken)
     {
-        var service = await lazyEdgeDriverService.WithCancellation(cancellationToken);
+        return Aff(async () =>
+        {
+            var service = await lazyEdgeDriverService.WithCancellation(cancellationToken);
 
-        var options = new EdgeOptions();
-        options.AddArgument("headless");
+            var options = new EdgeOptions();
+            options.AddArgument("headless");
 
-        return new EdgeDriver(service, options);
+            return new EdgeDriver(service, options);
+        });
     }
 
     private static async ValueTask<EdgeDriverService> GetService(HttpClient client, DirectoryInfo driverFolder, CancellationToken cancellationToken)

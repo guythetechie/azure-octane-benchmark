@@ -29,6 +29,7 @@ public static class Program
         services.AddHttpClient();
         services.AddHostedService<Worker>();
         services.AddSingleton(ServiceProviderModule.GetDiagnosticId)
+                .AddSingleton(ServiceProviderModule.GetVirtualMachineSku)
                 .AddSingleton(ServiceProviderModule.GetEdgeDriverFactory);
     }
 }

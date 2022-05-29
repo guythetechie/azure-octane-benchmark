@@ -19,16 +19,16 @@ public static class EffModule
         return eff.Do(t =>
         {
             action(t);
-            return Unit.Default;
+            return unit;
         });
     }
 
-    public static Aff<T> Do<T>(this Eff<T> eff, Func<T, ValueTask<Unit>> f)
-    {
-#pragma warning disable CA1806 // Do not ignore method results
-        return eff.Do(t => f(t).ToAff());
-#pragma warning restore CA1806 // Do not ignore method results
-    }
+    //    public static Aff<T> Do<T>(this Eff<T> eff, Func<T, ValueTask<Unit>> f)
+    //    {
+    //#pragma warning disable CA1806 // Do not ignore method results
+    //        return eff.Do(t => f(t).ToAff());
+    //#pragma warning restore CA1806 // Do not ignore method results
+    //    }
 }
 
 public static class AffModule
@@ -44,19 +44,24 @@ public static class AffModule
         return aff.Do(t =>
         {
             action(t);
-            return Unit.Default;
+            return unit;
         });
     }
 
     public static Aff<T> Do<T>(this Aff<T> aff, Func<T, ValueTask<Unit>> f)
     {
 #pragma warning disable CA1806 // Do not ignore method results
-        return aff.Do(t => f(t).ToAff());
+        return aff.Do(t => Aff(() => f(t)));
 #pragma warning restore CA1806 // Do not ignore method results
     }
 
-    public static Aff<Unit> Iter<T>(this Aff<T> aff, Func<T, ValueTask<Unit>> f)
+    public static Aff<Unit> ToUnit<T>(this Aff<T> aff)
     {
-        return aff.Iter(t => f(t).ToAff());
+        return aff.Map(_ => unit);
     }
+
+    //    public static Aff<Unit> Iter<T>(this Aff<T> aff, Func<T, ValueTask<Unit>> f)
+    //    {
+    //        return aff.Iter(t => f(t).ToAff());
+    //    }
 }

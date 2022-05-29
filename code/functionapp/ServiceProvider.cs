@@ -15,6 +15,8 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
+using static LanguageExt.Prelude;
+
 namespace functionapp;
 
 public record AzureAuthorityUri : UriRecord
@@ -140,54 +142,50 @@ public static class ServiceProviderModule
 
     public static CreateVirtualMachine GetCreateVirtualMachine(IServiceProvider provider)
     {
-        return async (virtualMachine, cancellationToken) =>
-        {
-            var resourceGroup = await GetResourceGroup(provider, cancellationToken);
-
-            var configuration = provider.GetRequiredService<IConfiguration>();
-            var subnetId = configuration.GetNonEmptyValue("VIRTUAL_MACHINE_SUBNET_ID");
-            var subnetData = new SubnetData { Id = subnetId };
-
-            return await VirtualMachineModule.CreateVirtualMachine(resourceGroup, subnetData, virtualMachine, cancellationToken);
-        };
+        return (virtualMachine, cancellationToken) =>
+            from _ in unitAff
+            let configuration = provider.GetRequiredService<IConfiguration>()
+            let subnetId = configuration.GetNonEmptyValue("VIRTUAL_MACHINE_SUBNET_ID")
+            let subnetData = new SubnetData { Id = subnetId }
+            from resourceGroup in Aff(async () => await GetResourceGroup(provider, cancellationToken))
+            from unit in VirtualMachineModule.CreateVirtualMachine(resourceGroup, subnetData, virtualMachine, cancellationToken)
+            select unit;
     }
 
     public static RunOctaneBenchmark GetRunOctaneBenchmark(IServiceProvider provider)
     {
-        var configuration = provider.GetRequiredService<IConfiguration>();
+        return (virtualMachine, diagnosticId, cancellationToken) =>
+            from _ in unitAff
+            let configuration = provider.GetRequiredService<IConfiguration>()
 
-        var rawBenchmarkScript = configuration.GetNonEmptyValue("BASE_64_RUN_OCTANE_BENCHMARK_SCRIPT");
-        var benchmarkScript = new Base64Script(rawBenchmarkScript);
+            let rawBenchmarkScript = configuration.GetNonEmptyValue("BASE_64_RUN_OCTANE_BENCHMARK_SCRIPT")
+            let benchmarkScript = new Base64Script(rawBenchmarkScript)
 
-        var storageAccountUrl = configuration.GetNonEmptyValue("AzureWebJobsStorage__blobServiceUri");
-        var artifactsContainerName = configuration.GetNonEmptyValue("STORAGE_ACCOUNT_ARTIFACT_CONTAINER_NAME");
-        var benchmarkZipFileName = "benchmark.zip";
-        var rawDownloadUri = new Uri(storageAccountUrl).AppendPathSegment(artifactsContainerName).AppendPathSegment(benchmarkZipFileName).ToUri();
+            let storageAccountUrl = configuration.GetSection("AzureWebJobsStorage").GetSection("blobServiceUri").Value
+            let artifactsContainerName = configuration.GetNonEmptyValue("STORAGE_ACCOUNT_ARTIFACT_CONTAINER_NAME")
+            let benchmarkZipFileName = "benchmark.zip"
+            let rawDownloadUri = new Uri(storageAccountUrl).AppendPathSegment(artifactsContainerName).AppendPathSegment(benchmarkZipFileName).ToUri()
 
-        var credential = provider.GetRequiredService<TokenCredential>();
-        var blobClient = new BlobClient(rawDownloadUri, credential);
-        var authenticatedDownloadUri = blobClient.GenerateSasUri(BlobSasPermissions.Read, DateTimeOffset.UtcNow.AddHours(1));
-        var benchmarkUri = new BenchmarkExecutableUri(authenticatedDownloadUri.ToString());
+            let credential = provider.GetRequiredService<TokenCredential>()
+            let blobClient = new BlobClient(rawDownloadUri, credential)
+            let authenticatedDownloadUri = blobClient.GenerateSasUri(BlobSasPermissions.Read, DateTimeOffset.UtcNow.AddHours(1))
+            let benchmarkUri = new BenchmarkExecutableUri(authenticatedDownloadUri.ToString())
 
-        var rawApplicationInsightsConnectionString = configuration.GetNonEmptyValue("APPLICATIONINSIGHTS_CONNECTION_STRING");
-        var applicationInsightsConnectionString = new ApplicationInsightsConnectionString(rawApplicationInsightsConnectionString);
+            let rawApplicationInsightsConnectionString = configuration.GetNonEmptyValue("APPLICATIONINSIGHTS_CONNECTION_STRING")
+            let applicationInsightsConnectionString = new ApplicationInsightsConnectionString(rawApplicationInsightsConnectionString)
 
-        return async (virtualMachine, diagnosticId, cancellationToken) =>
-        {
-            var resourceGroup = await GetResourceGroup(provider, cancellationToken);
-
-            return await VirtualMachineModule.RunOctaneBenchmark(benchmarkScript, benchmarkUri, diagnosticId, applicationInsightsConnectionString, resourceGroup, virtualMachine, cancellationToken);
-        };
+            from resourceGroup in Aff(async () => await GetResourceGroup(provider, cancellationToken))
+            from unit in VirtualMachineModule.RunOctaneBenchmark(benchmarkScript, benchmarkUri, diagnosticId, applicationInsightsConnectionString, resourceGroup, virtualMachine, cancellationToken)
+            select unit;
     }
 
     public static DeleteVirtualMachine GetDeleteVirtualMachine(IServiceProvider provider)
     {
-        return async (virtualMachineName, cancellationToken) =>
-        {
-            var resourceGroup = await GetResourceGroup(provider, cancellationToken);
-
-            return await VirtualMachineModule.DeleteVirtualMachine(resourceGroup, virtualMachineName, cancellationToken);
-        };
+        return (virtualMachineName, cancellationToken) =>
+            from _ in unitAff
+            from resourceGroup in Aff(async () => await GetResourceGroup(provider, cancellationToken))
+            from unit in VirtualMachineModule.DeleteVirtualMachine(resourceGroup, virtualMachineName, cancellationToken)
+            select unit;
     }
 
     private static async ValueTask<ResourceGroupResource> GetResourceGroup(IServiceProvider provider, CancellationToken cancellationToken)

@@ -29,44 +29,42 @@ public class VirtualMachineBenchmarker
     [FunctionName("run-octane-benchmark")]
     public async Task Run([ServiceBusTrigger("%SERVICE_BUS_RUN_OCTANE_BENCHMARK_QUEUE_NAME%", Connection = "ServiceBusConnection", AutoCompleteMessages = false)] ServiceBusReceivedMessage message, ServiceBusMessageActions messageActions, ILogger logger, CancellationToken cancellationToken)
     {
-        var tryGetJsonObject = () => JsonObjectModule.FromBinaryData(message.Body);
+        Eff<JsonObject> tryGetJsonObject() => JsonObjectModule.FromBinaryData(message.Body);
 
-        var tryGetDiagnosticId = () => message.ApplicationProperties.TryGetValue("Diagnostic-Id")
-                                                                    .Map(value => value.ToString())
-                                                                    .Filter(value => string.IsNullOrWhiteSpace(value) is false)
-                                                                    .Map(value => new DiagnosticId(value!))
-                                                                    .ToEff(Error.New("Diagnostic ID does not exist or is empty."));
+        Eff<DiagnosticId> tryGetDiagnosticId() => message.ApplicationProperties.TryGetValue("Diagnostic-Id")
+                                                                               .Map(value => value.ToString())
+                                                                               .Filter(value => string.IsNullOrWhiteSpace(value) is false)
+                                                                               .Map(value => new DiagnosticId(value!))
+                                                                               .ToEff(Error.New("Diagnostic ID does not exist or is empty."));
 
-        var completeMessage = () => messageActions.CompleteMessageAsync(message, cancellationToken)
-                                                  .ToUnitValueTask();
+        async ValueTask<Unit> completeMessage() => await messageActions.CompleteMessageAsync(message, cancellationToken)
+                                                                       .ToUnit();
 
-        var handleTimeout = Aff(() =>
+        var handleTimeout = Aff(async () =>
         {
             logger.LogWarning("Function app timed out, abandoning message...");
 
-            return messageActions.AbandonMessageAsync(message, cancellationToken: cancellationToken)
-                                 .ToUnitValueTask();
+            return await messageActions.AbandonMessageAsync(message, cancellationToken: cancellationToken)
+                                       .ToUnit();
         });
 
-        var handleInvalidJson = (Error error) => Aff(() =>
-        {
-            logger.LogCritical($"JSON is invalid. Error is '{error.Message}'. Sending message to dead-letter queue...");
+        async ValueTask<Unit> deadLetterMessage(string deadLetterReason, string deadLetterErrorDescription) =>
+            await messageActions.DeadLetterMessageAsync(message, deadLetterReason, deadLetterErrorDescription, cancellationToken)
+                                .ToUnit();
 
-            return messageActions.DeadLetterMessageAsync(message, deadLetterReason: nameof(CommonErrorCode.InvalidJson), deadLetterErrorDescription: error.Message, cancellationToken)
-                                 .ToUnitValueTask();
-        });
+        Aff<Unit> handleInvalidJson(Error error) =>
+            unitAff.Do(_ => logger.LogCritical($"JSON is invalid. Error is '{error.Message}'. Sending message to dead-letter queue..."))
+                   .Do(_ => deadLetterMessage(deadLetterReason: nameof(CommonErrorCode.InvalidJson), deadLetterErrorDescription: error.Message));
 
-        var handleRequestFailedException = (Exception exception) => Aff(() =>
-        {
-            var requestFailedException = (RequestFailedException)exception;
-            logger.LogCritical($"Azure request failed. Error is '{requestFailedException.Message}'. Sending message to dead-letter queue...");
+        bool isUnretryableRequestFailedException(Exception exception) =>
+            exception is RequestFailedException requestFailedException && (requestFailedException.Status == 400);
 
-            return messageActions.DeadLetterMessageAsync(message,
-                                                        deadLetterReason: requestFailedException.ErrorCode,
-                                                        deadLetterErrorDescription: requestFailedException.Message,
-                                                        cancellationToken)
-                                 .ToUnitValueTask();
-        });
+        Aff<Unit> handleRequestFailedException(Exception exception) =>
+            SuccessAff(exception)
+                .Map(exception => (RequestFailedException)exception)
+                .Do(requestFailedException => logger.LogCritical($"Azure request failed. Error is '{requestFailedException.Message}'. Sending message to dead-letter queue..."))
+                .Do(requestFailedException => deadLetterMessage(deadLetterReason: requestFailedException.ErrorCode, deadLetterErrorDescription: requestFailedException.Message))
+                .ToUnit();
 
         await tryGetJsonObject().Do(jsonObject => logger.LogInformation("Request payload: {RunOctaneBenchmarkRequestJson}", jsonObject.SerializeToString()))
                                 .Bind(GetVirtualMachine)
@@ -77,11 +75,12 @@ public class VirtualMachineBenchmarker
                                 .Do(_ => logger.LogInformation("Queueing virtual machine for deletion..."))
                                 .Do(tuple => queueVirtualMachineDeletion(tuple.virtualMachine.Name, cancellationToken))
                                 .Do(_ => logger.LogInformation("Completing service bus message.."))
-                                .Iter(_ => completeMessage())
+                                .Do(_ => completeMessage())
+                                .ToUnit()
                                 .Timeout(TimeSpan.FromMinutes(4.5))
-                                .Catch(Errors.TimedOut, handleTimeout)
+                                .Catch(Errors.TimedOut, _ => handleTimeout)
                                 .Catch(CommonErrorCode.InvalidJson, handleInvalidJson)
-                                .Catch(exception => exception is RequestFailedException requestFailedException && (requestFailedException.Status == 400), handleRequestFailedException)
+                                .Catch(isUnretryableRequestFailedException, handleRequestFailedException)
                                 .RunAndThrowIfFail();
     }
 

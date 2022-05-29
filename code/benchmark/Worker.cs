@@ -1,4 +1,5 @@
 using common;
+using LanguageExt;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.Extensions.Hosting;
@@ -42,8 +43,10 @@ public class Worker : BackgroundService
 
             using var operation = telemetryClient.StartOperation<RequestTelemetry>(activity);
 
-            var score = await Run(stoppingToken);
-            logger.LogInformation("Octane score: {OctaneScore}", score);
+            await edgeDriverFactory.CreateDriver(stoppingToken)
+                                   .Map(driver => Run(driver, stoppingToken))
+                                   .Do(score => logger.LogInformation("Octane score: {OctaneScore}", score))
+                                   .RunUnit();
         }
         catch (Exception exception)
         {
@@ -59,10 +62,8 @@ public class Worker : BackgroundService
         }
     }
 
-    private async ValueTask<uint> Run(CancellationToken cancellationToken)
+    private static uint Run(IWebDriver driver, CancellationToken cancellationToken)
     {
-        using var driver = await edgeDriverFactory.CreateDriver(cancellationToken);
-
         var octaneUri = new Uri("http://chromium.github.io/octane/");
         driver.Navigate().GoToUrl(octaneUri);
 
