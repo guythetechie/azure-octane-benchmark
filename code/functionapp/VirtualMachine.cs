@@ -86,16 +86,14 @@ public static class VirtualMachineModule
                 NetworkProfile = new NetworkProfile
                 {
                     NetworkInterfaces =
-                {
-                    new NetworkInterfaceReference
                     {
-                        Primary= true,
-                        Id = networkInterface.Id
+                        new NetworkInterfaceReference
+                        {
+                            Primary= true,
+                            Id = networkInterface.Id
+                        }
                     }
-                }
                 },
-                Priority = VirtualMachinePriorityTypes.Spot,
-                EvictionPolicy = VirtualMachineEvictionPolicyTypes.Deallocate,
                 StorageProfile = new StorageProfile
                 {
                     OSDisk = new OSDisk(DiskCreateOptionTypes.FromImage)
