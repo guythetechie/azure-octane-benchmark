@@ -5,6 +5,7 @@ using Azure.ResourceManager;
 using Azure.ResourceManager.Network;
 using Azure.ResourceManager.Resources;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Specialized;
 using Azure.Storage.Sas;
 using common;
 using Flurl;
@@ -168,7 +169,20 @@ public static class ServiceProviderModule
 
             let credential = provider.GetRequiredService<TokenCredential>()
             let blobClient = new BlobClient(rawDownloadUri, credential)
-            let authenticatedDownloadUri = blobClient.GenerateSasUri(BlobSasPermissions.Read, DateTimeOffset.UtcNow.AddHours(1))
+            let blobServiceClient = blobClient.GetParentBlobContainerClient().GetParentBlobServiceClient()
+            from userDelegationKey in Aff(async () => await blobServiceClient.GetUserDelegationKeyAsync(null, DateTimeOffset.UtcNow.AddHours(1), cancellationToken))
+            let sasBuilder = new BlobSasBuilder
+            {
+                BlobContainerName = blobClient.BlobContainerName,
+                BlobName = blobClient.Name,
+                Resource = "b",
+            }
+            from permissionedSasBuilder in SuccessEff(sasBuilder).Do(builder => builder.SetPermissions(BlobSasPermissions.Read | BlobSasPermissions.Write)).ToAff()
+            let blobUriBuilder = new BlobUriBuilder(blobClient.Uri)
+            {
+                Sas = permissionedSasBuilder.ToSasQueryParameters(userDelegationKey, blobServiceClient.AccountName)
+            }
+            let authenticatedDownloadUri = blobUriBuilder.ToUri()
             let benchmarkUri = new BenchmarkExecutableUri(authenticatedDownloadUri.ToString())
 
             let rawApplicationInsightsConnectionString = configuration.GetNonEmptyValue("APPLICATIONINSIGHTS_CONNECTION_STRING")
