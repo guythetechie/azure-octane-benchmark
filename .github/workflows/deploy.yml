@@ -69,7 +69,7 @@ jobs:
         run: |
           set -eu
           echo "Publishing benchmark app..."
-          dotnet publish "${{ github.workspace }}/code/benchmark/benchmark.csproj" --configuration "Release" --runtime "win-x64" --self-contained "true" --output "${{ runner.temp }}/benchmark"
+          dotnet publish "${{ github.workspace }}/code/benchmark/benchmark.fsproj" --configuration "Release" --runtime "win-x64" --self-contained "true" --output "${{ runner.temp }}/benchmark"
           
           echo "Zipping function app..."
           7z a "${{ runner.temp }}/benchmark.zip" "${{ runner.temp }}/benchmark/*"
@@ -80,13 +80,15 @@ jobs:
         with:
           name: benchmark
           path: "${{ runner.temp }}/benchmark.zip"
-  upload-benchmark-app-to-storage:
-    name: Upload benchmark app to storage
+  upload-artifacts-to-storage:
+    name: Upload artifacts to storage
     needs:
       - package-benchmark-app
       - deploy-infrastructure
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout branch
+        uses: actions/checkout@v3
       - name: Download benchmark app artifact
         uses: actions/download-artifact@v3
         with:
@@ -98,11 +100,16 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: Upload benchmark app
+      - name: Upload artifacts
         run: |
           set -eu
-          echo "Uploading benchmark artifact..."
+
+          echo "Uploading benchmark app artifact..."
           az storage blob upload --account-name "${{ secrets.STORAGE_ACCOUNT_NAME }}" --container-name "${{ env.STORAGE_ACCOUNT_ARTIFACTS_CONTAINER_NAME }}" --name benchmark.zip --file "${{ runner.temp }}/benchmark.zip" --overwrite
+
+          echo "Uploading PowerShell script artifact..."
+          az storage blob upload --account-name "${{ secrets.STORAGE_ACCOUNT_NAME }}" --container-name "${{ env.STORAGE_ACCOUNT_ARTIFACTS_CONTAINER_NAME }}" --name Run-OctaneBenchmark.ps1 --file "${{ github.workspace }}/scripts/Run-OctaneBenchmark.ps1" --overwrite
+
           echo "Script complete."
   package-function-app:
     name: Package function app
@@ -114,7 +121,7 @@ jobs:
         run: |
           set -eu
           echo "Publishing function app..."
-          dotnet publish "${{ github.workspace }}/code/functionapp/functionapp.csproj" --configuration Release --output "${{ runner.temp }}/functionapp"
+          dotnet publish "${{ github.workspace }}/code/functionapp/functionapp.fsproj" --configuration Release --output "${{ runner.temp }}/functionapp"
           
           echo "Zipping function app..."
           7z a "${{ runner.temp }}/functionapp.zip" "${{ runner.temp }}/functionapp/*"
