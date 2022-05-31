@@ -309,7 +309,8 @@ module Functions =
                 |> AsyncResult.fromAsync
 
             do!
-                VirtualMachine.runCustomScript scriptUri scriptParameters resourceGroup
+                VirtualMachine.get resourceGroup virtualMachine.Name
+                |> Async.bind (VirtualMachine.runCustomScript scriptUri scriptParameters)
                 |> AsyncResult.fromAsync
 
             logger.LogInformation("Queuing virtual machine for deletion...")
