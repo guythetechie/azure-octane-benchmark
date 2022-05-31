@@ -130,12 +130,10 @@ let main arguments =
 
         try
             try
-                use edgeService = EdgeDriverService.CreateDefaultService()
-
                 use edgeDriver =
                     let options = new EdgeOptions()
                     options.AddArgument("headless")
-                    new EdgeDriver(edgeService, options)
+                    new EdgeDriver(options)
 
                 let! score = getOctaneScore edgeDriver
                 logger.LogInformation("Octane score: {OctaneScore}", score)

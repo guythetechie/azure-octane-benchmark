@@ -4,6 +4,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net6.0</TargetFramework>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <PublishMsEdgeDriver>true</PublishMsEdgeDriver>
     <AnalysisMode>all</AnalysisMode>
     <UserSecretsId>dotnet-benchmark-9580E170-D49A-4EF5-9299-A61DB8FA6449</UserSecretsId>
   </PropertyGroup>

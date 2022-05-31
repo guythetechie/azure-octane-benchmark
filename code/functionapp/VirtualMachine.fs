@@ -271,7 +271,7 @@ module VirtualMachine =
                             |> Seq.map (fun (key, value) -> $"-{key} \"{value}\"")
                             |> String.concat " "
 
-                        $"powershell -ExecutionPolicy Unrestricted -File {scriptFileName} {parameters}"
+                        $"powershell -NonInteractive -ExecutionPolicy Unrestricted -File {scriptFileName} {parameters}"
 
                     let fileUris =
                         new JsonArray()
@@ -335,7 +335,7 @@ module VirtualMachine =
         }
 
     let deleteByName resourceGroup virtualMachineName =
-        let deleteResource = deleteByResource WaitUntil.Started
+        let deleteResource = deleteByResource WaitUntil.Completed
 
         let deleteDisks =
             deleteDisks WaitUntil.Started resourceGroup
