@@ -19,7 +19,7 @@ $ErrorActionPreference = "Stop"
 $VerbosePreference = "Continue"
 $InformationPreference = "Continue"
 
-$downloadFilePath = [System.IO.Path]::GetTempFileName()
+$downloadFilePath = "$([System.IO.Path]::GetTempFileName()).zip"
 Invoke-WebRequest -Uri $BenchmarkDownloadUri -OutFile $downloadFilePath
 
 $scriptDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName())

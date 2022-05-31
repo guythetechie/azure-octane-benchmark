@@ -268,7 +268,7 @@ module VirtualMachine =
                         let parameters =
                             scriptParameters
                             |> Map.toSeq
-                            |> Seq.map (fun (key, value) -> $"-{key} {value}")
+                            |> Seq.map (fun (key, value) -> $"-{key} \"{value}\"")
                             |> String.concat " "
 
                         $"powershell -ExecutionPolicy Unrestricted -File {scriptFileName} {parameters}"
