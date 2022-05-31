@@ -130,15 +130,19 @@ let main arguments =
 
         try
             try
+                use edgeService = EdgeDriverService.CreateDefaultService()
+
                 use edgeDriver =
                     let options = new EdgeOptions()
                     options.AddArgument("headless")
-                    new EdgeDriver(options)
+                    new EdgeDriver(edgeService, options)
 
                 let! score = getOctaneScore edgeDriver
                 logger.LogInformation("Octane score: {OctaneScore}", score)
             with
-            | error -> logger.LogCritical(error, "")
+            | error ->
+                logger.LogCritical(error, "")
+                raise error
         finally
             telemetryClient.Flush()
 

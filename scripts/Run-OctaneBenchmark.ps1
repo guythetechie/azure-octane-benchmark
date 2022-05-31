@@ -31,4 +31,7 @@ $argumentList = @(
     "--VIRTUAL_MACHINE_SKU $VirtualMachineSku",
     "--APPLICATIONINSIGHTS_CONNECTION_STRING $ApplicationInsightsConnectionString"
 )
-Start-Process -FilePath $scriptExecutablePath -NoNewWindow -Wait -ArgumentList $argumentList
+$process = Start-Process -FilePath $scriptExecutablePath -PassThru -NoNewWindow -Wait -ArgumentList $argumentList
+if ($process.ExitCode -ne 0) {
+    throw "Process failed."
+}
