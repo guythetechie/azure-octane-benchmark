@@ -26,4 +26,4 @@ $scriptDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]
 Expand-Archive -LiteralPath $downloadFilePath -DestinationPath $scriptDirectory
 
 $scriptExecutablePath = Join-Path $scriptDirectory "benchmark.exe"
-. $scriptExecutablePath --DIAGNOSTIC_ID $DiagnosticId --VIRTUAL_MACHINE_SKU $VirtualMachineSku --APPLICATIONINSIGHTS_CONNECTION_STRING $ApplicationInsightsConnectionString
+. $scriptExecutablePath --DIAGNOSTIC_ID $DiagnosticId --VIRTUAL_MACHINE_SKU $VirtualMachineSku --APPLICATION_INSIGHTS_CONNECTION_STRING $ApplicationInsightsConnectionString
