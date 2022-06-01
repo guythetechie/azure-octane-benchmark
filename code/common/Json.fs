@@ -14,7 +14,7 @@ type JsonError =
 
     static member fromString value =
         if String.IsNullOrWhiteSpace(value) then
-            invalidOp "Virtual machine name cannot be empty."
+            invalidOp "JSON error cannot be empty."
         else
             value |> NonEmptyString.fromString |> JsonError
 
