@@ -152,7 +152,7 @@ let main arguments =
                 let! score = getOctaneScore edgeDriver
 
                 logger.LogInformation("Octane score: {OctaneScore}", score)
-                telemetryClient.TrackMetric("OctaneScore", float score)
+                telemetryClient.GetMetric("OctaneScore").TrackValue(float score)
             with
             | error ->
                 logger.LogCritical(error, "")
