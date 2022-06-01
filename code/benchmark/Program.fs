@@ -6,6 +6,7 @@ open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Hosting
 open Microsoft.Extensions.Logging
+open Microsoft.Extensions.Logging.ApplicationInsights
 open OpenQA.Selenium
 open OpenQA.Selenium.Support.UI
 open System
@@ -16,7 +17,12 @@ open common
 
 let private getServiceProvider arguments =
     let configureServices (services: IServiceCollection) =
-        services.AddApplicationInsightsTelemetryWorkerService()
+        services.AddApplicationInsightsTelemetryWorkerService (fun options ->
+            options.ConnectionString <-
+                services
+                    .BuildServiceProvider()
+                    .GetRequiredService<IConfiguration>()
+                |> Configuration.getValue "APPLICATION_INSIGHTS_CONNECTION_STRING")
         |> ignore
 
     let configureConfiguration (builder: IConfigurationBuilder) =
@@ -24,16 +30,18 @@ let private getServiceProvider arguments =
         |> ignore
 
     let configureLogging (builder: ILoggingBuilder) =
-        builder.AddFile("log.txt", append = true)
+        builder
+            .AddFile("log.txt", append = true)
+            .AddFilter<ApplicationInsightsLoggerProvider>("", LogLevel.Information)
         |> ignore
 
     let hostBuilder = Host.CreateDefaultBuilder(arguments)
 
     let hostBuilder =
-        hostBuilder.ConfigureServices(configureServices)
+        hostBuilder.ConfigureHostConfiguration(configureConfiguration)
 
     let hostBuilder =
-        hostBuilder.ConfigureAppConfiguration(configureConfiguration)
+        hostBuilder.ConfigureServices(configureServices)
 
     let hostBuilder =
         hostBuilder.ConfigureLogging(configureLogging)
@@ -130,15 +138,21 @@ let main arguments =
 
         try
             try
+                logger.LogInformation("Getting Edge driver service...")
                 use edgeService = EdgeDriverService.CreateDefaultService()
+
+                logger.LogInformation("Getting Edge driver...")
 
                 use edgeDriver =
                     let options = new EdgeOptions()
                     options.AddArgument("headless")
                     new EdgeDriver(edgeService, options)
 
+                logger.LogInformation("Getting score...")
                 let! score = getOctaneScore edgeDriver
+
                 logger.LogInformation("Octane score: {OctaneScore}", score)
+                telemetryClient.TrackMetric("OctaneScore", float score)
             with
             | error ->
                 logger.LogCritical(error, "")
