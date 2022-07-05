@@ -6,12 +6,12 @@ on:
         required: false
         type: boolean
         description: Test
-  push:
-    branches:
-      - dev
-    paths:
-      - code/**
-      - bicep/**
+  # push:
+  #   branches:
+  #     - dev
+  #   paths:
+  #     - code/**
+  #     - bicep/**
 permissions:
   contents: read
   id-token: write
