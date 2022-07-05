@@ -20,7 +20,7 @@ paths:
                     description: Virtual machine SKU
                     type: string
                     minLength: 1
-                    example: Standard_D2s
+                    example: Standard_D2as
                   virtualMachineCount:
                     description: Virtual machine count
                     type: integer
