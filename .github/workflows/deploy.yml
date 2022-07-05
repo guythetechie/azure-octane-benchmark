@@ -83,6 +83,7 @@ jobs:
         with:
           name: benchmark
           path: "${{ runner.temp }}/benchmark.zip"
+          retention-days: 5
   upload-benchmark-app-to-storage:
     name: Upload benchmark app to storage
     needs:
@@ -128,6 +129,7 @@ jobs:
         with:
           name: functionapp
           path: "${{ runner.temp }}/functionapp.zip"
+          retention-days: 5
   publish-function-app:
     name: Publish function app
     needs:

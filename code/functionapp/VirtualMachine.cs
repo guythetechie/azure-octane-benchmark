@@ -93,7 +93,7 @@ public static class VirtualMachineModule
         };
 
         return await resourceGroup.GetNetworkInterfaces()
-                                  .CreateOrUpdateAsync(WaitUntil.Completed, $"{virtualMachine.Name}-nic", nicData, cancellationToken)
+                                  .CreateOrUpdateAsync(WaitUntil.Completed, $"{virtualMachine.Name.Value}-nic", nicData, cancellationToken)
                                   .Map(operation => operation.Value);
     }
 
@@ -128,7 +128,7 @@ public static class VirtualMachineModule
                 OSDisk = new OSDisk(DiskCreateOptionTypes.FromImage)
                 {
                     OSType = OperatingSystemTypes.Windows,
-                    Name = $"{virtualMachine.Name}-osdisk",
+                    Name = $"{virtualMachine.Name.Value}-osdisk",
                     ManagedDisk = new ManagedDiskParameters
                     {
                         StorageAccountType = StorageAccountTypes.StandardLRS
