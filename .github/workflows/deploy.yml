@@ -1,155 +1,33 @@
-name: Deploy
-on: workflow_dispatch
-  # push:
-  #   branches:
-  #     - dev
-  #   paths:
-  #     - code/**
-  #     - bicep/**
-# permissions:
-#   contents: read
-#   id-token: write
-env:
-  STORAGE_ACCOUNT_ARTIFACTS_CONTAINER_NAME: artifacts
-  RESOURCE_GROUP_NAME: octane-benchmark-rg
-  RESOURCE_GROUP_LOCATION: eastus
+on: 
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: 'Log level'     
+        required: true
+        default: 'warning' 
+        type: choice
+        options:
+        - info
+        - warning
+        - debug 
+      tags:
+        description: 'Test scenario tags'
+        required: false 
+        type: boolean
+      environment:
+        description: 'Environment to run tests against'
+        type: environment
+        required: true 
+
 jobs:
-  deploy-infrastructure:
-    name: Deploy infrastructure
+  log-the-inputs:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout branch
-        uses: actions/checkout@v3
-      - name: Logon to Azure
-        uses: azure/login@v1
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          enable-AzPSSession: true
-      - name: Deploy Bicep file
-        uses: azure/powershell@v1
-        with:
-          inlineScript: |
-            Set-StrictMode -Version Latest
-            $ErrorActionPreference = "Stop"
-            $VerbosePreference = "Continue"
-            $InformationPreference = "Continue"
-
-            Write-Information "Creating resource group..."
-            New-AzResourceGroup -Name "${{ env.RESOURCE_GROUP_NAME }}" -Location "${{ env.RESOURCE_GROUP_LOCATION }}" -Force
-            
-            Write-Information "Creating resources..."
-            $deploymentParameters = @{
-              ResourceGroupName = "${{ env.RESOURCE_GROUP_NAME }}"
-              TemplateFile = "${{ github.workspace}}/bicep/main.bicep"
-              TemplateParameterObject = @{
-                storageAccountName = "${{ secrets.STORAGE_ACCOUNT_NAME }}"
-                artifactStorageContainerName = "${{ env.STORAGE_ACCOUNT_ARTIFACTS_CONTAINER_NAME }}"
-                serviceBusName = "${{ secrets.SERVICE_BUS_NAME }}"
-                logAnalyticsWorkspaceName = "${{ secrets.LOG_ANALYTICS_WORKSPACE_NAME }}"
-                applicationInsightsName = "${{ secrets.APPLICATION_INSIGHTS_NAME }}"
-                virtualNetworkName = "${{ secrets.VIRTUAL_NETWORK_NAME }}"
-                bastionName = "${{ secrets.BASTION_NAME }}"
-                functionAppName = "${{ secrets.FUNCTION_APP_NAME }}"
-                appServicePlanName = "${{ secrets.APP_SERVICE_PLAN_NAME }}"
-              }
-              Mode = "Complete"
-              Force = $true
-            }
-            New-AzResourceGroupDeployment @deploymentParameters
-
-            Write-Information "Execution complete."
-          azPSVersion: "latest"
-  package-benchmark-app:
-    name: Package benchmark app
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout branch
-        uses: actions/checkout@v3
-      - name: Create benchmark app artifact
-        run: |
-          set -eu
-          echo "Publishing benchmark app..."
-          dotnet publish "${{ github.workspace }}/code/benchmark/benchmark.csproj" --configuration "Release" --runtime "win-x64" --self-contained "true" --output "${{ runner.temp }}/benchmark"
-          
-          echo "Zipping benchmark app..."
-          7z a "${{ runner.temp }}/benchmark.zip" "${{ runner.temp }}/benchmark/*"
-
-          echo "Script complete."
-      - name: Package benchmark app artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: benchmark
-          path: "${{ runner.temp }}/benchmark.zip"
-          retention-days: 5
-  upload-benchmark-app-to-storage:
-    name: Upload benchmark app to storage
-    needs:
-      - package-benchmark-app
-      - deploy-infrastructure
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download benchmark app artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: benchmark
-          path: ${{ runner.temp }}
-      - name: Logon to Azure
-        uses: azure/login@v1
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: Upload benchmark app
-        run: |
-          set -eu
-          echo "Uploading benchmark artifact..."
-          az storage blob upload --account-name "${{ secrets.STORAGE_ACCOUNT_NAME }}" --container-name "${{ env.STORAGE_ACCOUNT_ARTIFACTS_CONTAINER_NAME }}" --name benchmark.zip --file "${{ runner.temp }}/benchmark.zip" --overwrite
-          echo "Script complete."
-  package-function-app:
-    name: Package function app
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout branch
-        uses: actions/checkout@v3
-      - name: Create function app artifact
-        run: |
-          set -eu
-          echo "Publishing function app..."
-          dotnet publish "${{ github.workspace }}/code/functionapp/functionapp.csproj" --configuration Release --output "${{ runner.temp }}/functionapp"
-          
-          echo "Zipping function app..."
-          7z a "${{ runner.temp }}/functionapp.zip" "${{ runner.temp }}/functionapp/*"
-
-          echo "Script complete."
-      - name: Publish function app artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: functionapp
-          path: "${{ runner.temp }}/functionapp.zip"
-          retention-days: 5
-  publish-function-app:
-    name: Publish function app
-    needs:
-      - package-function-app
-      - deploy-infrastructure
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download function app artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: functionapp
-          path: ${{ runner.temp }}
-      - name: Logon to Azure
-        uses: azure/login@v1
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: Publish function app
-        run: |
-          set -eu
-          echo "Deploying function..."
-          az functionapp deployment source config-zip --src "${{ runner.temp }}/functionapp.zip" --resource-group "${{ env.RESOURCE_GROUP_NAME }}" --name "${{ secrets.FUNCTION_APP_NAME }}"
-          echo "Script complete."
+      - run: |
+          echo "Log level: $LEVEL"
+          echo "Tags: $TAGS"
+          echo "Environment: $ENVIRONMENT"
+        env:
+          LEVEL: ${{ inputs.logLevel }}
+          TAGS: ${{ inputs.tags }}
+          ENVIRONMENT: ${{ inputs.environment }}
