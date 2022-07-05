@@ -20,7 +20,7 @@ public class Terminator
         this.deleteVirtualMachine = deleteVirtualMachine;
     }
 
-    [FunctionName("delete-virtual-machine")]
+    [FunctionName("terminator")]
     public async Task Run([ServiceBusTrigger("%SERVICE_BUS_DELETE_VM_QUEUE_NAME%", Connection = "ServiceBusConnection", AutoCompleteMessages = false)] ServiceBusReceivedMessage message, ServiceBusMessageActions messageActions, ILogger logger, CancellationToken cancellationToken)
     {
         try

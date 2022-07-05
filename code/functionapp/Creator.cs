@@ -22,7 +22,7 @@ public class Creator
         this.queueOctaneBenchmark = queueOctaneBenchmark;
     }
 
-    [FunctionName("create-virtual-machine")]
+    [FunctionName("creator")]
     public async Task Run([ServiceBusTrigger("%SERVICE_BUS_CREATE_VM_QUEUE_NAME%", Connection = "ServiceBusConnection", AutoCompleteMessages = false)] ServiceBusReceivedMessage message, ServiceBusMessageActions messageActions, ILogger logger, CancellationToken cancellationToken)
     {
         try
