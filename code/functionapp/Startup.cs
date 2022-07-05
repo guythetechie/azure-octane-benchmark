@@ -10,6 +10,9 @@ using System.Diagnostics.CodeAnalysis;
 [assembly: SuppressMessage("Reliability", "CA2007:Consider calling ConfigureAwait on the awaited task", Justification = "<Pending>")]
 [assembly: SuppressMessage("Naming", "CA1711:Identifiers should not have incorrect suffix", Justification = "<Pending>")]
 [assembly: SuppressMessage("Reliability", "CA2012:Use ValueTasks correctly", Justification = "<Pending>")]
+[assembly: SuppressMessage("Performance", "CA1849:Call async methods when in an async method", Justification = "<Pending>")]
+[assembly: SuppressMessage("Security", "CA5394:Do not use insecure randomness", Justification = "<Pending>")]
+
 namespace functionapp;
 
 public class Startup : FunctionsStartup
@@ -27,12 +30,12 @@ public class Startup : FunctionsStartup
                 .AddSingleton(ServiceProviderModule.GetVirtualMachineCreationQueueName)
                 .AddTransient(ServiceProviderModule.GetOctaneBenchmarkQueueName)
                 .AddSingleton(ServiceProviderModule.GetVirtualMachineDeletionQueueName)
-                .AddTransient(ServiceProviderModule.GetQueueVirtualMachineCreation)
-                .AddTransient(ServiceProviderModule.GetQueueOctaneBenchmark)
-                .AddTransient(ServiceProviderModule.GetQueueVirtualMachineDeletion)
+                .AddTransient(ServiceProviderModule.QueueVirtualMachineCreation)
+                .AddTransient(ServiceProviderModule.QueueOctaneBenchmark)
+                .AddTransient(ServiceProviderModule.QueueVirtualMachineDeletion)
                 .AddSingleton(ServiceProviderModule.GetArmClient)
-                .AddTransient(ServiceProviderModule.GetCreateVirtualMachine)
-                .AddTransient(ServiceProviderModule.GetRunOctaneBenchmark)
-                .AddTransient(ServiceProviderModule.GetDeleteVirtualMachine);
+                .AddTransient(ServiceProviderModule.CreateVirtualMachine)
+                .AddTransient(ServiceProviderModule.RunOctaneBenchmark)
+                .AddTransient(ServiceProviderModule.DeleteVirtualMachine);
     }
 }

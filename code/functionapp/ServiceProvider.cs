@@ -9,23 +9,20 @@ using Azure.Storage.Blobs.Specialized;
 using Azure.Storage.Sas;
 using common;
 using Flurl;
-using LanguageExt;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-using static LanguageExt.Prelude;
-
 namespace functionapp;
 
-public record AzureAuthorityUri : UriRecord
+internal record AzureAuthorityUri : UriRecord
 {
     public AzureAuthorityUri(string value) : base(value) { }
 }
 
-public static class ServiceProviderModule
+internal static class ServiceProviderModule
 {
     public static AzureAuthorityUri GetAzureAuthorityUri(IServiceProvider provider)
     {
@@ -51,7 +48,7 @@ public static class ServiceProviderModule
         var authority = provider.GetRequiredService<AzureAuthorityUri>();
         var options = new DefaultAzureCredentialOptions()
         {
-            AuthorityHost = authority.ToUri()
+            AuthorityHost = authority.Uri
         };
 
         return new DefaultAzureCredential(options);
@@ -61,11 +58,16 @@ public static class ServiceProviderModule
     {
         var configuration = provider.GetRequiredService<IConfiguration>();
 
-        return configuration.TryGetNonEmptyValue("SERVICE_BUS_CONNECTION_STRING")
+        return configuration.GetOptionalNonEmptyValue("SERVICE_BUS_CONNECTION_STRING")
                             .Map(connectionString => new ServiceBusClient(connectionString))
-                            .IfFail(_ => GetServiceBusClientFromTokenCredential(provider))
-                            .Run()
-                            .ThrowIfFail();
+                            .IfNone(() =>
+                            {
+                                var configuration = provider.GetRequiredService<IConfiguration>();
+                                var serviceBusNamespace = configuration.GetSection("ServiceBusConnection").GetSection("fullyQualifiedNamespace").Value;
+                                var credential = provider.GetRequiredService<TokenCredential>();
+
+                                return new ServiceBusClient(serviceBusNamespace, credential);
+                            });
     }
 
     public static VirtualMachineCreationQueueName GetVirtualMachineCreationQueueName(IServiceProvider provider)
@@ -89,49 +91,52 @@ public static class ServiceProviderModule
         return new VirtualMachineDeletionQueueName(configuration.GetNonEmptyValue("SERVICE_BUS_DELETE_VM_QUEUE_NAME"));
     }
 
-    public static QueueVirtualMachineCreation GetQueueVirtualMachineCreation(IServiceProvider provider)
+    public static QueueVirtualMachineCreation QueueVirtualMachineCreation(IServiceProvider provider)
     {
-        var configuration = provider.GetRequiredService<IConfiguration>();
+        return async (virtualMachines, cancellationToken) =>
+        {
+            var configuration = provider.GetRequiredService<IConfiguration>();
 
-        var client = configuration.TryGetNonEmptyValue("SERVICE_BUS_CREATE_VM_QUEUE_CONNECTION_STRING")
-                             .Map(connectionString => new ServiceBusClient(connectionString))
-                             .IfFail(_ => provider.GetRequiredService<ServiceBusClient>())
-                             .Run()
-                             .ThrowIfFail();
+            var client = configuration.GetOptionalNonEmptyValue("SERVICE_BUS_CREATE_VM_QUEUE_CONNECTION_STRING")
+                                      .Map(connectionString => new ServiceBusClient(connectionString))
+                                      .IfNone(() => provider.GetRequiredService<ServiceBusClient>());
 
-        var queue = provider.GetRequiredService<VirtualMachineCreationQueueName>();
+            var queueName = provider.GetRequiredService<VirtualMachineCreationQueueName>();
 
-        return (virtualMachines, cancellationToken) => ServiceBusModule.QueueVirtualMachineCreation(client, queue, virtualMachines, cancellationToken);
+            await ServiceBusModule.QueueVirtualMachineCreation(client, queueName, virtualMachines, cancellationToken);
+        };
     }
 
-    public static QueueOctaneBenchmark GetQueueOctaneBenchmark(IServiceProvider provider)
+    public static QueueOctaneBenchmark QueueOctaneBenchmark(IServiceProvider provider)
     {
-        var configuration = provider.GetRequiredService<IConfiguration>();
+        return async (virtualMachine, cancellationToken) =>
+        {
+            var configuration = provider.GetRequiredService<IConfiguration>();
 
-        var client = configuration.TryGetNonEmptyValue("SERVICE_BUS_RUN_OCTANE_BENCHMARK_QUEUE_CONNECTION_STRING")
-                             .Map(connectionString => new ServiceBusClient(connectionString))
-                             .IfFail(_ => provider.GetRequiredService<ServiceBusClient>())
-                             .Run()
-                             .ThrowIfFail();
+            var client = configuration.GetOptionalNonEmptyValue("SERVICE_BUS_RUN_OCTANE_BENCHMARK_QUEUE_CONNECTION_STRING")
+                                      .Map(connectionString => new ServiceBusClient(connectionString))
+                                      .IfNone(() => provider.GetRequiredService<ServiceBusClient>());
 
-        var queue = provider.GetRequiredService<OctaneBenchmarkQueueName>();
+            var queueName = provider.GetRequiredService<OctaneBenchmarkQueueName>();
 
-        return (virtualMachine, cancellationToken) => ServiceBusModule.QueueOctaneBenchmark(client, queue, virtualMachine, cancellationToken);
+            await ServiceBusModule.QueueOctaneBenchmark(client, queueName, virtualMachine, cancellationToken);
+        };
     }
 
-    public static QueueVirtualMachineDeletion GetQueueVirtualMachineDeletion(IServiceProvider provider)
+    public static QueueVirtualMachineDeletion QueueVirtualMachineDeletion(IServiceProvider provider)
     {
-        var configuration = provider.GetRequiredService<IConfiguration>();
+        return async (virtualMachine, cancellationToken) =>
+        {
+            var configuration = provider.GetRequiredService<IConfiguration>();
 
-        var client = configuration.TryGetNonEmptyValue("SERVICE_BUS_DELETE_VM_QUEUE_CONNECTION_STRING")
-                             .Map(connectionString => new ServiceBusClient(connectionString))
-                             .IfFail(_ => provider.GetRequiredService<ServiceBusClient>())
-                             .Run()
-                             .ThrowIfFail();
+            var client = configuration.GetOptionalNonEmptyValue("SERVICE_BUS_DELETE_VM_QUEUE_CONNECTION_STRING")
+                                      .Map(connectionString => new ServiceBusClient(connectionString))
+                                      .IfNone(() => provider.GetRequiredService<ServiceBusClient>());
 
-        var queue = provider.GetRequiredService<VirtualMachineDeletionQueueName>();
+            var queueName = provider.GetRequiredService<VirtualMachineDeletionQueueName>();
 
-        return (virtualMachineName, cancellationToken) => ServiceBusModule.QueueVirtualMachineDeletion(client, queue, virtualMachineName, cancellationToken);
+            await ServiceBusModule.QueueVirtualMachineDeletion(client, queueName, virtualMachine, cancellationToken);
+        };
     }
 
     public static ArmClient GetArmClient(IServiceProvider provider)
@@ -141,66 +146,73 @@ public static class ServiceProviderModule
         return new ArmClient(credential);
     }
 
-    public static CreateVirtualMachine GetCreateVirtualMachine(IServiceProvider provider)
+    public static CreateVirtualMachine CreateVirtualMachine(IServiceProvider provider)
     {
-        return (virtualMachine, cancellationToken) =>
-            from _ in unitAff
-            let configuration = provider.GetRequiredService<IConfiguration>()
-            let subnetId = configuration.GetNonEmptyValue("VIRTUAL_MACHINE_SUBNET_ID")
-            let subnetData = new SubnetData { Id = subnetId }
-            from resourceGroup in Aff(async () => await GetResourceGroup(provider, cancellationToken))
-            from unit in VirtualMachineModule.CreateVirtualMachine(resourceGroup, subnetData, virtualMachine, cancellationToken)
-            select unit;
+        return async (virtualMachine, cancellationToken) =>
+        {
+            var configuration = provider.GetRequiredService<IConfiguration>();
+            var subnetId = configuration.GetNonEmptyValue("VIRTUAL_MACHINE_SUBNET_ID");
+            var subnetData = new SubnetData { Id = subnetId };
+            var resourceGroup = await GetResourceGroup(provider, cancellationToken);
+
+            await VirtualMachineModule.CreateVirtualMachine(resourceGroup, subnetData, virtualMachine, cancellationToken);
+        };
     }
 
-    public static RunOctaneBenchmark GetRunOctaneBenchmark(IServiceProvider provider)
+    public static RunOctaneBenchmark RunOctaneBenchmark(IServiceProvider provider)
     {
-        return (virtualMachine, diagnosticId, cancellationToken) =>
-            from _ in unitAff
-            let configuration = provider.GetRequiredService<IConfiguration>()
+        return async (virtualMachine, diagnosticId, cancellationToken) =>
+        {
+            var configuration = provider.GetRequiredService<IConfiguration>();
 
-            let rawBenchmarkScript = configuration.GetNonEmptyValue("BASE_64_RUN_OCTANE_BENCHMARK_SCRIPT")
-            let benchmarkScript = new Base64Script(rawBenchmarkScript)
+            var base64BenchmarkScript = configuration.GetNonEmptyValue("BASE_64_RUN_OCTANE_BENCHMARK_SCRIPT");
+            var benchmarkScriptBinaryData = new BinaryData(Convert.FromBase64String(base64BenchmarkScript));
+            var benchmarkScript = new BenchmarkScript(benchmarkScriptBinaryData);
 
-            let storageAccountUrl = configuration.GetSection("AzureWebJobsStorage").GetSection("blobServiceUri").Value
-            let artifactsContainerName = configuration.GetNonEmptyValue("STORAGE_ACCOUNT_ARTIFACT_CONTAINER_NAME")
-            let benchmarkZipFileName = "benchmark.zip"
-            let rawDownloadUri = new Uri(storageAccountUrl).AppendPathSegment(artifactsContainerName).AppendPathSegment(benchmarkZipFileName).ToUri()
+            var applicationInsightsConnectionStringValue = configuration.GetNonEmptyValue("APPLICATIONINSIGHTS_CONNECTION_STRING");
+            var applicationInsightsConnectionString = new ApplicationInsightsConnectionString(applicationInsightsConnectionStringValue);
 
-            let credential = provider.GetRequiredService<TokenCredential>()
-            let blobClient = new BlobClient(rawDownloadUri, credential)
-            let blobServiceClient = blobClient.GetParentBlobContainerClient().GetParentBlobServiceClient()
-            from userDelegationKey in Aff(async () => await blobServiceClient.GetUserDelegationKeyAsync(null, DateTimeOffset.UtcNow.AddHours(1), cancellationToken))
-            let sasBuilder = new BlobSasBuilder
+            var resourceGroup = await GetResourceGroup(provider, cancellationToken);
+
+            var storageAccountUrl = configuration.GetSection("AzureWebJobsStorage").GetSection("blobServiceUri").Value;
+            var artifactsContainerName = configuration.GetNonEmptyValue("STORAGE_ACCOUNT_ARTIFACT_CONTAINER_NAME");
+            var benchmarkZipFileName = "benchmark.zip";
+            var benchmarkExecutableDownloadUri = new Uri(storageAccountUrl).AppendPathSegment(artifactsContainerName)
+                                                                           .AppendPathSegment(benchmarkZipFileName)
+                                                                           .ToUri();
+
+            var tokenCredential = provider.GetRequiredService<TokenCredential>();
+            var blobClient = new BlobClient(benchmarkExecutableDownloadUri, tokenCredential);
+            var blobServiceClient = blobClient.GetParentBlobContainerClient().GetParentBlobServiceClient();
+            var userDelegationKey = await blobServiceClient.GetUserDelegationKeyAsync(null, DateTimeOffset.UtcNow.AddHours(1), cancellationToken);
+
+            var sasBuilder = new BlobSasBuilder
             {
                 BlobContainerName = blobClient.BlobContainerName,
                 BlobName = blobClient.Name,
                 Resource = "b",
                 ExpiresOn = userDelegationKey.Value.SignedExpiresOn
-            }
-            from permissionedSasBuilder in SuccessEff(sasBuilder).Do(builder => builder.SetPermissions(BlobSasPermissions.Read | BlobSasPermissions.Write)).ToAff()
-            let blobUriBuilder = new BlobUriBuilder(blobClient.Uri)
+            };
+            sasBuilder.SetPermissions(BlobSasPermissions.Read | BlobSasPermissions.Write);
+
+            var blobUriBuilder = new BlobUriBuilder(blobClient.Uri)
             {
-                Sas = permissionedSasBuilder.ToSasQueryParameters(userDelegationKey, blobServiceClient.AccountName)
-            }
-            let authenticatedDownloadUri = blobUriBuilder.ToUri()
-            let benchmarkUri = new BenchmarkExecutableUri(authenticatedDownloadUri.ToString())
+                Sas = sasBuilder.ToSasQueryParameters(userDelegationKey, blobClient.AccountName)
+            };
 
-            let rawApplicationInsightsConnectionString = configuration.GetNonEmptyValue("APPLICATIONINSIGHTS_CONNECTION_STRING")
-            let applicationInsightsConnectionString = new ApplicationInsightsConnectionString(rawApplicationInsightsConnectionString)
+            var benchmarkDownloadUri = new BenchmarkExecutableUri(blobUriBuilder.ToUri().ToString());
 
-            from resourceGroup in Aff(async () => await GetResourceGroup(provider, cancellationToken))
-            from unit in VirtualMachineModule.RunOctaneBenchmark(benchmarkScript, benchmarkUri, diagnosticId, applicationInsightsConnectionString, resourceGroup, virtualMachine, cancellationToken)
-            select unit;
+            await VirtualMachineModule.RunOctaneBenchmark(benchmarkScript, benchmarkDownloadUri, diagnosticId, applicationInsightsConnectionString, resourceGroup, virtualMachine, cancellationToken);
+        };
     }
 
-    public static DeleteVirtualMachine GetDeleteVirtualMachine(IServiceProvider provider)
+    public static DeleteVirtualMachine DeleteVirtualMachine(IServiceProvider provider)
     {
-        return (virtualMachineName, cancellationToken) =>
-            from _ in unitAff
-            from resourceGroup in Aff(async () => await GetResourceGroup(provider, cancellationToken))
-            from unit in VirtualMachineModule.DeleteVirtualMachine(resourceGroup, virtualMachineName, cancellationToken)
-            select unit;
+        return async (virtualMachineName, cancellationToken) =>
+        {
+            var resourceGroup = await GetResourceGroup(provider, cancellationToken);
+            await VirtualMachineModule.DeleteVirtualMachine(resourceGroup, virtualMachineName, cancellationToken);
+        };
     }
 
     private static async ValueTask<ResourceGroupResource> GetResourceGroup(IServiceProvider provider, CancellationToken cancellationToken)
@@ -212,14 +224,5 @@ public static class ServiceProviderModule
         var resourceGroupName = configuration.GetNonEmptyValue("VIRTUAL_MACHINE_RESOURCE_GROUP_NAME");
 
         return await subscription.GetResourceGroupAsync(resourceGroupName, cancellationToken);
-    }
-
-    private static ServiceBusClient GetServiceBusClientFromTokenCredential(IServiceProvider provider)
-    {
-        var configuration = provider.GetRequiredService<IConfiguration>();
-        var serviceBusNamespace = configuration.GetSection("ServiceBusConnection").GetSection("fullyQualifiedNamespace").Value;
-        var credential = provider.GetRequiredService<TokenCredential>();
-
-        return new ServiceBusClient(serviceBusNamespace, credential);
     }
 }

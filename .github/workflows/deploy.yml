@@ -71,7 +71,7 @@ jobs:
           echo "Publishing benchmark app..."
           dotnet publish "${{ github.workspace }}/code/benchmark/benchmark.csproj" --configuration "Release" --runtime "win-x64" --self-contained "true" --output "${{ runner.temp }}/benchmark"
           
-          echo "Zipping function app..."
+          echo "Zipping benchmark app..."
           7z a "${{ runner.temp }}/benchmark.zip" "${{ runner.temp }}/benchmark/*"
 
           echo "Script complete."

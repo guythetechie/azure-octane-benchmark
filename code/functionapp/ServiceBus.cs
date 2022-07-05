@@ -8,76 +8,49 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 
-using static LanguageExt.Prelude;
-
 namespace functionapp;
-
-public record VirtualMachineCreationQueueName : NonEmptyString
-{
-    public VirtualMachineCreationQueueName(string value) : base(value) { }
-}
-
-public record OctaneBenchmarkQueueName : NonEmptyString
-{
-    public OctaneBenchmarkQueueName(string value) : base(value) { }
-}
-
-public record VirtualMachineDeletionQueueName : NonEmptyString
-{
-    public VirtualMachineDeletionQueueName(string value) : base(value) { }
-}
 
 public static class ServiceBusModule
 {
-    public static Aff<Unit> QueueVirtualMachineCreation(ServiceBusClient client, VirtualMachineCreationQueueName queueName, Seq<(VirtualMachine VirtualMachine, DateTimeOffset EnqueueAt)> virtualMachines, CancellationToken cancellationToken)
+    public static async ValueTask QueueVirtualMachineCreation(ServiceBusClient client, VirtualMachineCreationQueueName queueName, Seq<(VirtualMachine VirtualMachine, DateTimeOffset EnqueueAt)> virtualMachines, CancellationToken cancellationToken)
     {
-        return Aff(async () =>
+        var sender = client.CreateSender(queueName.Value);
+        var messages = virtualMachines.Map(item => CreateMessage(item.VirtualMachine, item.EnqueueAt));
+        var queue = new Queue<ServiceBusMessage>(messages);
+
+        while (queue.Count > 0)
         {
-            var sender = client.CreateSender(queueName);
-            var messages = virtualMachines.Map(item => CreateMessage(item.VirtualMachine, item.EnqueueAt));
-            var queue = new Queue<ServiceBusMessage>(messages);
+            using var batch = await sender.CreateMessageBatchAsync(cancellationToken);
 
-            while (queue.Count > 0)
+            // Remove messages from queue and add them to batch until the batch is full
+            while (queue.Count > 0 && batch.TryAddMessage(queue.Peek()))
             {
-                using var batch = await sender.CreateMessageBatchAsync(cancellationToken);
-
-                while (queue.Count > 0 && batch.TryAddMessage(queue.Peek()))
-                {
-                    queue.Dequeue();
-                }
-
-                if (batch.Count > 0)
-                {
-                    await sender.SendMessagesAsync(batch, cancellationToken);
-                }
-                else
-                {
-                    throw new InvalidOperationException("Could not add message to batch. Payload might be too big.");
-                }
+                queue.Dequeue();
             }
 
-            return unit;
-        });
+            if (batch.Count > 0)
+            {
+                await sender.SendMessagesAsync(batch, cancellationToken);
+            }
+            else
+            {
+                throw new InvalidOperationException("Could not add message to batch. Payload might be too big.");
+            }
+        };
     }
 
-    public static Aff<Unit> QueueOctaneBenchmark(ServiceBusClient client, OctaneBenchmarkQueueName queueName, VirtualMachine virtualMachine, CancellationToken cancellationToken)
+    public static async ValueTask QueueOctaneBenchmark(ServiceBusClient client, OctaneBenchmarkQueueName queueName, VirtualMachine virtualMachine, CancellationToken cancellationToken)
     {
-        return Aff(async () =>
-        {
-            var message = CreateMessage(virtualMachine);
+        var message = CreateMessage(virtualMachine);
 
-            return await SendMessage(client, queueName, message, cancellationToken);
-        });
+        await SendMessage(client, queueName.Value, message, cancellationToken);
     }
 
-    public static Aff<Unit> QueueVirtualMachineDeletion(ServiceBusClient client, VirtualMachineDeletionQueueName queueName, VirtualMachineName virtualMachineName, CancellationToken cancellationToken)
+    public static async ValueTask QueueVirtualMachineDeletion(ServiceBusClient client, VirtualMachineDeletionQueueName queueName, VirtualMachineName virtualMachineName, CancellationToken cancellationToken)
     {
-        return Aff(async () =>
-        {
-            var message = CreateMessage(virtualMachineName);
+        var message = CreateMessage(virtualMachineName);
 
-            return await SendMessage(client, queueName, message, cancellationToken);
-        });
+        await SendMessage(client, queueName.Value, message, cancellationToken);
     }
 
     private static ServiceBusMessage CreateMessage(VirtualMachine virtualMachine)
@@ -135,12 +108,10 @@ public static class ServiceBusModule
         };
     }
 
-    private static async ValueTask<Unit> SendMessage(ServiceBusClient client, string queueName, ServiceBusMessage message, CancellationToken cancellationToken)
+    private static async ValueTask SendMessage(ServiceBusClient client, string queueName, ServiceBusMessage message, CancellationToken cancellationToken)
     {
         var sender = client.CreateSender(queueName);
 
         await sender.SendMessageAsync(message, cancellationToken);
-
-        return unit;
     }
 }

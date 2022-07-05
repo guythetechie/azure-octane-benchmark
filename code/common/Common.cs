@@ -10,61 +10,71 @@ using System.Diagnostics.CodeAnalysis;
 [assembly: SuppressMessage("Performance", "CA1848:Use the LoggerMessage delegates", Justification = "<Pending>")]
 namespace common;
 
-public record NonEmptyString
-{
-    private readonly string value;
-
-    public NonEmptyString(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            throw new ArgumentException($"'{nameof(value)}' cannot be null or whitespace.", nameof(value));
-        }
-
-        this.value = value;
-    }
-
-    public sealed override string ToString()
-    {
-        return value;
-    }
-
-    public static implicit operator string(NonEmptyString nonEmptyString)
-    {
-        return nonEmptyString.value;
-    }
-}
-
 /// <summary>
 /// Wrapper for strings that represent an absolute URL.
 /// </summary>
-public abstract record UriRecord : NonEmptyString
+public abstract record UriRecord
 {
-    protected UriRecord(string value) : base(value)
+    protected UriRecord(string value)
     {
         if (Uri.TryCreate(value, UriKind.Absolute, out var _) is false)
         {
             throw new ArgumentException($"{value} is not a valid absolute URI.", nameof(value));
         }
+
+        Value = value;
     }
 
-    public Uri ToUri() => new(this.ToString(), UriKind.Absolute);
+    public string Value { get; }
+
+    public Uri Uri => new(Value, UriKind.Absolute);
+
+    public override string ToString() => Value;
 }
 
-public record VirtualMachineSku : NonEmptyString
+public record VirtualMachineSku
 {
-    public VirtualMachineSku(string value) : base(value) { }
+    public VirtualMachineSku(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException("Virtual machine SKU cannot be null or whitespace.", nameof(value));
+        }
+
+        Value = value;
+    }
+
+    public string Value { get; }
 }
 
-public record VirtualMachineName : NonEmptyString
+public record VirtualMachineName
 {
-    public VirtualMachineName(string value) : base(value) { }
+    public VirtualMachineName(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException("Virtual machine name cannot be null or whitespace.", nameof(value));
+        }
 
+        Value = value;
+    }
+
+    public string Value { get; }
 }
 
-public record DiagnosticId : NonEmptyString
+public record DiagnosticId
 {
-    public DiagnosticId(string value) : base(value) { }
+    public DiagnosticId(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException("Diagnostic ID cannot be null or whitespace.", nameof(value));
+        }
+
+        Value = value;
+    }
+
+    public string Value { get; }
 }
 
 public record VirtualMachine(VirtualMachineName Name, VirtualMachineSku Sku);

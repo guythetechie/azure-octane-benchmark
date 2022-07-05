@@ -35,6 +35,7 @@ resource artifactStorageContainer 'Microsoft.Storage/storageAccounts/blobService
   name: artifactStorageContainerName
   parent: storageBlobServices
 }
+
 resource serviceBus 'Microsoft.ServiceBus/namespaces@2021-11-01' = {
   name: serviceBusName
   location: location

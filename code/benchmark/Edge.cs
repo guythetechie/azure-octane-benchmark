@@ -1,7 +1,4 @@
-﻿using common;
-using DotNext.Threading;
-using LanguageExt;
-using LanguageExt.Common;
+﻿using DotNext.Threading;
 using Microsoft.Win32;
 using OpenQA.Selenium.Edge;
 using System;
@@ -10,8 +7,6 @@ using System.IO.Compression;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-
-using static LanguageExt.Prelude;
 
 namespace benchmark;
 
@@ -32,17 +27,14 @@ public class EdgeDriverFactory : IAsyncDisposable
         });
     }
 
-    public Aff<EdgeDriver> CreateDriver(CancellationToken cancellationToken)
+    public async ValueTask<EdgeDriver> CreateDriver(CancellationToken cancellationToken)
     {
-        return Aff(async () =>
-        {
-            var service = await lazyEdgeDriverService.WithCancellation(cancellationToken);
+        var service = await lazyEdgeDriverService.WithCancellation(cancellationToken);
 
-            var options = new EdgeOptions();
-            options.AddArgument("headless");
+        var options = new EdgeOptions();
+        options.AddArgument("headless");
 
-            return new EdgeDriver(service, options);
-        });
+        return new EdgeDriver(service, options);
     }
 
     private static async ValueTask<EdgeDriverService> GetService(HttpClient client, DirectoryInfo driverFolder, CancellationToken cancellationToken)
@@ -62,7 +54,7 @@ public class EdgeDriverFactory : IAsyncDisposable
         return new DirectoryInfo(path);
     }
 
-    private static async ValueTask<Unit> DownloadDriver(HttpClient client, FileInfo downloadFile, CancellationToken cancellationToken)
+    private static async ValueTask DownloadDriver(HttpClient client, FileInfo downloadFile, CancellationToken cancellationToken)
     {
         var downloadUri = GetDownloadUri();
         using var response = await client.GetAsync(downloadUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
@@ -71,15 +63,14 @@ public class EdgeDriverFactory : IAsyncDisposable
         using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
         using var fileStream = downloadFile.Create();
         await responseStream.CopyToAsync(fileStream, cancellationToken);
-
-        return Unit.Default;
     }
 
     private static Uri GetDownloadUri()
     {
-        return Edge.TryGetDriverDownloadUri()
-                   .Run()
-                   .ThrowIfFail();
+        var version = GetInstalledVersion();
+        var architecture = Environment.Is64BitOperatingSystem ? "64" : "32";
+
+        return new Uri($"https://msedgedriver.azureedge.net/{version}/edgedriver_win{architecture}.zip");
     }
 
     public async ValueTask DisposeAsync()
@@ -97,29 +88,17 @@ public class EdgeDriverFactory : IAsyncDisposable
 
         GC.SuppressFinalize(this);
     }
-}
 
-internal static class Edge
-{
-    public static Eff<Uri> TryGetDriverDownloadUri()
+    private static string GetInstalledVersion()
     {
-        return TryGetInstalledVersion().Map(version =>
-        {
-            string architecture = Environment.Is64BitOperatingSystem ? "64" : "32";
+        var edgeRegistryKey = OperatingSystem.IsWindows()
+                                ? Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Edge\BLBeacon")
+                                : throw new InvalidOperationException($"Getting Edge is only supported on Windows. Current operating system is {Environment.OSVersion.VersionString}.");
 
-            return new Uri($"https://msedgedriver.azureedge.net/{version}/edgedriver_win{architecture}.zip");
-        });
-    }
+        var nullableEdgeVersion = edgeRegistryKey?.GetValue("version")?.ToString();
 
-    private static Eff<NonEmptyString> TryGetInstalledVersion()
-    {
-        return SuccessEff(Unit.Default).Bind(_ => OperatingSystem.IsWindows()
-                                                    ? SuccessEff(Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Edge\BLBeacon")
-                                                                                    ?.GetValue("version")
-                                                                                    ?.ToString())
-                                                    : FailEff<string?>($"Getting Edge is only supported on Windows. Current operating system is {Environment.OSVersion.VersionString}."))
-                                       .Bind(value => string.IsNullOrWhiteSpace(value)
-                                                        ? FailEff<NonEmptyString>(Error.New("Edge version cannot be null or whitespace."))
-                                                        : SuccessEff(new NonEmptyString(value)));
+        return string.IsNullOrWhiteSpace(nullableEdgeVersion)
+                ? throw new InvalidOperationException($"Could not get Edge version from registry.")
+                : nullableEdgeVersion;
     }
 }

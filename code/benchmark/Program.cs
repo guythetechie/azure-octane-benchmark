@@ -27,9 +27,9 @@ public static class Program
     {
         services.AddApplicationInsightsTelemetryWorkerService();
         services.AddHttpClient();
+        services.AddSingleton(ServiceProviderModule.GetDiagnosticId);
+        services.AddSingleton(ServiceProviderModule.GetVirtualMachineSku);
+        services.AddSingleton(ServiceProviderModule.GetEdgeDriverFactory);
         services.AddHostedService<Worker>();
-        services.AddSingleton(ServiceProviderModule.GetDiagnosticId)
-                .AddSingleton(ServiceProviderModule.GetVirtualMachineSku)
-                .AddSingleton(ServiceProviderModule.GetEdgeDriverFactory);
     }
 }
