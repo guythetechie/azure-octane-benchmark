@@ -6,9 +6,9 @@ on: workflow_dispatch
   #   paths:
   #     - code/**
   #     - bicep/**
-permissions:
-  contents: read
-  id-token: write
+# permissions:
+#   contents: read
+#   id-token: write
 env:
   STORAGE_ACCOUNT_ARTIFACTS_CONTAINER_NAME: artifacts
   RESOURCE_GROUP_NAME: octane-benchmark-rg
