@@ -1,11 +1,5 @@
 name: Deploy
-on:
-  workflow_dispatch:
-    inputs:
-      test:
-        required: false
-        type: boolean
-        description: Test
+on: workflow_dispatch
   # push:
   #   branches:
   #     - dev
