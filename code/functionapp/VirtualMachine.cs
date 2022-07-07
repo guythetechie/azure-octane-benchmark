@@ -65,15 +65,14 @@ public static class VirtualMachineModule
         var osDiskResponse = await resourceGroup.GetDiskAsync(osDiskName, cancellationToken: cancellationToken);
         await osDiskResponse.Value.DeleteAsync(WaitUntil.Started, cancellationToken);
 
-        var tasks = virtualMachineResource.Data
-                                          .NetworkProfile
-                                          .NetworkInterfaces
-                                          .Select(reference => reference.Id.Split('/').Last())
-                                          .Select(networkInterfaceName => from networkInterfaceResponse in resourceGroup.GetNetworkInterfaceAsync(networkInterfaceName, cancellationToken: cancellationToken)
-                                                                          from operation in networkInterfaceResponse.Value.DeleteAsync(WaitUntil.Started, cancellationToken)
-                                                                          select operation);
+        var deleteNetworkInterfaceTasks =
+            from networkInterface in virtualMachineResource.Data.NetworkProfile.NetworkInterfaces
+            let networkInterfaceId = networkInterface.Id
+            let networkInterfaceName = networkInterfaceId.Split('/').Last()
+            let deletionValueTask = DeleteNetworkInterface(resourceGroup, networkInterfaceName, WaitUntil.Started, cancellationToken)
+            select deletionValueTask.AsTask();
 
-        await Task.WhenAll(tasks);
+        await Task.WhenAll(deleteNetworkInterfaceTasks);
     }
 
     private static async ValueTask<NetworkInterfaceResource> CreateNetworkInterface(ResourceGroupResource resourceGroup, SubnetData subnetData, VirtualMachine virtualMachine, CancellationToken cancellationToken)
@@ -95,6 +94,13 @@ public static class VirtualMachineModule
         return await resourceGroup.GetNetworkInterfaces()
                                   .CreateOrUpdateAsync(WaitUntil.Completed, $"{virtualMachine.Name.Value}-nic", nicData, cancellationToken)
                                   .Map(operation => operation.Value);
+    }
+
+    private static async ValueTask DeleteNetworkInterface(ResourceGroupResource resourceGroup, string networkInterfaceName, WaitUntil waitUntil, CancellationToken cancellationToken)
+    {
+        var networkInterfaceResponse = await resourceGroup.GetNetworkInterfaceAsync(networkInterfaceName, cancellationToken: cancellationToken);
+        var networkInterface = networkInterfaceResponse.Value;
+        await networkInterface.DeleteAsync(waitUntil, cancellationToken);
     }
 
     private static async ValueTask CreateVirtualMachine(NetworkInterfaceResource networkInterface, ResourceGroupResource resourceGroup, VirtualMachine virtualMachine, CancellationToken cancellationToken)

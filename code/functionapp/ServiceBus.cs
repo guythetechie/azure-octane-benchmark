@@ -78,8 +78,8 @@ public static class ServiceBusModule
     {
         return new JsonObject()
         {
-            ["virtualMachineName"] = virtualMachine.Name.ToString(),
-            ["virtualMachineSku"] = virtualMachine.Sku.ToString()
+            ["virtualMachineName"] = virtualMachine.Name.Value,
+            ["virtualMachineSku"] = virtualMachine.Sku.Value
         };
     }
 
@@ -87,7 +87,7 @@ public static class ServiceBusModule
     {
         return new JsonObject()
         {
-            ["virtualMachineName"] = virtualMachineName.ToString()
+            ["virtualMachineName"] = virtualMachineName.Value
         };
     }
 
