@@ -15,6 +15,7 @@ env:
   STORAGE_ACCOUNT_SCRIPT_FILE_Name: "benchmark.zip"
   RESOURCE_GROUP_NAME: octane-benchmark-rg
   RESOURCE_GROUP_LOCATION: eastus
+  TEST: TEST
 jobs:
   deploy-infrastructure:
     name: Deploy infrastructure
