@@ -46,7 +46,7 @@ public class Benchmarker
             var diagnosticId = GetDiagnosticId(message);
 
             logger.LogInformation("Running benchmark...");
-            await runOctaneBenchmark(virtualMachine, diagnosticId, linkedToken);
+            await runOctaneBenchmark(logger, virtualMachine, diagnosticId, linkedToken);
 
             logger.LogInformation("Queuing virtual machine for deletion...");
             await queueVirtualMachineDeletion(virtualMachine.Name, linkedToken);

@@ -162,7 +162,7 @@ internal static class ServiceProviderModule
 
     public static RunOctaneBenchmark RunOctaneBenchmark(IServiceProvider provider)
     {
-        return async (virtualMachine, diagnosticId, cancellationToken) =>
+        return async (logger, virtualMachine, diagnosticId, cancellationToken) =>
         {
             var configuration = provider.GetRequiredService<IConfiguration>();
 
@@ -177,7 +177,6 @@ internal static class ServiceProviderModule
 
             var benchmarkExecutableUri = await GetBenchmarkExecutableUri(provider, cancellationToken);
 
-            var logger = provider.GetRequiredService<ILoggerFactory>().CreateLogger("RunOctaneBenchmark");
             logger.LogInformation("Executable URI: {BenchmarkExecutableUri}, DiagnosticID: {DiagnosticID}, AppInsightsConnectionString: {AppInsightsConnectionString}", benchmarkExecutableUri.Value, diagnosticId.Value, applicationInsightsConnectionString.Value);
             await VirtualMachineModule.RunOctaneBenchmark(benchmarkScript, benchmarkExecutableUri, diagnosticId, applicationInsightsConnectionString, resourceGroup, virtualMachine, cancellationToken);
         };
