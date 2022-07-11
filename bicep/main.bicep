@@ -197,7 +197,7 @@ resource functionAppSettings 'Microsoft.Web/sites/config@2021-02-01' = {
     STORAGE_ACCOUNT_SCRIPT_FILE_NAME: scriptFileName
   }
 }
-
+//
 resource contributorRoleDefinition 'Microsoft.Authorization/roleDefinitions@2018-01-01-preview' existing = {
   scope: subscription()
   name: 'b24988ac-6180-42a0-ab88-20f7382dd24c'
