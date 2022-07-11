@@ -19,6 +19,8 @@ $ErrorActionPreference = "Stop"
 $VerbosePreference = "Continue"
 $InformationPreference = "Continue"
 
+Start-Process msedge
+
 $downloadFilePath = "$([System.IO.Path]::GetTempFileName()).zip"
 Invoke-WebRequest -Uri $BenchmarkDownloadUri -OutFile $downloadFilePath
 
