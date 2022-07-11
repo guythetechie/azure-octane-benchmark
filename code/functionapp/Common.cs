@@ -57,7 +57,7 @@ public delegate ValueTask CreateVirtualMachine(VirtualMachine virtualMachine, Ca
 
 public delegate ValueTask QueueOctaneBenchmark(VirtualMachine virtualMachine, CancellationToken cancellationToken);
 
-public delegate ValueTask RunOctaneBenchmark(Microsoft.Extensions.Logging.ILogger logger, VirtualMachine virtualMachine, DiagnosticId diagnosticId, CancellationToken cancellationToken);
+public delegate ValueTask RunOctaneBenchmark(VirtualMachine virtualMachine, DiagnosticId diagnosticId, CancellationToken cancellationToken);
 
 public delegate ValueTask QueueVirtualMachineDeletion(VirtualMachineName virtualMachineName, CancellationToken cancellationToken);
 
