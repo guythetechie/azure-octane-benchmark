@@ -164,20 +164,21 @@ internal static class ServiceProviderModule
     {
         return async (virtualMachine, diagnosticId, cancellationToken) =>
         {
-            var configuration = provider.GetRequiredService<IConfiguration>();
+            await Task.Delay(TimeSpan.FromMinutes(System.Random.Shared.NextDouble()), cancellationToken);
+            //var configuration = provider.GetRequiredService<IConfiguration>();
 
-            var base64BenchmarkScript = configuration.GetNonEmptyValue("BASE_64_RUN_OCTANE_BENCHMARK_SCRIPT");
-            var benchmarkScriptBinaryData = new BinaryData(Convert.FromBase64String(base64BenchmarkScript));
-            var benchmarkScript = new BenchmarkScript(benchmarkScriptBinaryData);
+            //var base64BenchmarkScript = configuration.GetNonEmptyValue("BASE_64_RUN_OCTANE_BENCHMARK_SCRIPT");
+            //var benchmarkScriptBinaryData = new BinaryData(Convert.FromBase64String(base64BenchmarkScript));
+            //var benchmarkScript = new BenchmarkScript(benchmarkScriptBinaryData);
 
-            var applicationInsightsConnectionStringValue = configuration.GetNonEmptyValue("APPLICATIONINSIGHTS_CONNECTION_STRING");
-            var applicationInsightsConnectionString = new ApplicationInsightsConnectionString(applicationInsightsConnectionStringValue);
+            //var applicationInsightsConnectionStringValue = configuration.GetNonEmptyValue("APPLICATIONINSIGHTS_CONNECTION_STRING");
+            //var applicationInsightsConnectionString = new ApplicationInsightsConnectionString(applicationInsightsConnectionStringValue);
 
-            var resourceGroup = await GetResourceGroup(provider, cancellationToken);
+            //var resourceGroup = await GetResourceGroup(provider, cancellationToken);
 
-            var benchmarkExecutableUri = await GetBenchmarkExecutableUri(provider, cancellationToken);
+            //var benchmarkExecutableUri = await GetBenchmarkExecutableUri(provider, cancellationToken);
 
-            await VirtualMachineModule.RunOctaneBenchmark(benchmarkScript, benchmarkExecutableUri, diagnosticId, applicationInsightsConnectionString, resourceGroup, virtualMachine, cancellationToken);
+            //await VirtualMachineModule.RunOctaneBenchmark(benchmarkScript, benchmarkExecutableUri, diagnosticId, applicationInsightsConnectionString, resourceGroup, virtualMachine, cancellationToken);
         };
     }
 
