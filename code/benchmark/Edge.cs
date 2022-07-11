@@ -67,7 +67,8 @@ public class EdgeDriverFactory : IAsyncDisposable
 
     private static Uri GetDownloadUri()
     {
-        var version = GetInstalledVersion();
+        // Use hard-coded version for benchmark
+        var version = "103.0.1264.49"; // GetInstalledVersion();
         var architecture = Environment.Is64BitOperatingSystem ? "64" : "32";
 
         return new Uri($"https://msedgedriver.azureedge.net/{version}/edgedriver_win{architecture}.zip");
