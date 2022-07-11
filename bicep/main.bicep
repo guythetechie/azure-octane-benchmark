@@ -1,5 +1,6 @@
 param storageAccountName string
 param artifactStorageContainerName string
+param scriptFileName string
 param location string = resourceGroup().location
 param tags object = {}
 param serviceBusName string
@@ -193,6 +194,7 @@ resource functionAppSettings 'Microsoft.Web/sites/config@2021-02-01' = {
     SERVICE_BUS_RUN_OCTANE_BENCHMARK_QUEUE_NAME: serviceBusRunOctaneBenchmarkQueue.name
     SERVICE_BUS_DELETE_VM_QUEUE_NAME: serviceBusDeleteVmQueue.name
     STORAGE_ACCOUNT_ARTIFACT_CONTAINER_NAME: artifactStorageContainer.name
+    STORAGE_ACCOUNT_SCRIPT_FILE_NAME: scriptFileName
   }
 }
 

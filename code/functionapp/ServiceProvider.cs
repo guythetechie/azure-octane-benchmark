@@ -11,6 +11,7 @@ using common;
 using Flurl;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -174,35 +175,11 @@ internal static class ServiceProviderModule
 
             var resourceGroup = await GetResourceGroup(provider, cancellationToken);
 
-            var storageAccountUrl = configuration.GetSection("AzureWebJobsStorage").GetSection("blobServiceUri").Value;
-            var artifactsContainerName = configuration.GetNonEmptyValue("STORAGE_ACCOUNT_ARTIFACT_CONTAINER_NAME");
-            var benchmarkZipFileName = "benchmark.zip";
-            var benchmarkExecutableDownloadUri = new Uri(storageAccountUrl).AppendPathSegment(artifactsContainerName)
-                                                                           .AppendPathSegment(benchmarkZipFileName)
-                                                                           .ToUri();
+            var benchmarkExecutableUri = await GetBenchmarkExecutableUri(provider, cancellationToken);
 
-            var tokenCredential = provider.GetRequiredService<TokenCredential>();
-            var blobClient = new BlobClient(benchmarkExecutableDownloadUri, tokenCredential);
-            var blobServiceClient = blobClient.GetParentBlobContainerClient().GetParentBlobServiceClient();
-            var userDelegationKey = await blobServiceClient.GetUserDelegationKeyAsync(null, DateTimeOffset.UtcNow.AddHours(1), cancellationToken);
-
-            var sasBuilder = new BlobSasBuilder
-            {
-                BlobContainerName = blobClient.BlobContainerName,
-                BlobName = blobClient.Name,
-                Resource = "b",
-                ExpiresOn = userDelegationKey.Value.SignedExpiresOn
-            };
-            sasBuilder.SetPermissions(BlobSasPermissions.Read | BlobSasPermissions.Write);
-
-            var blobUriBuilder = new BlobUriBuilder(blobClient.Uri)
-            {
-                Sas = sasBuilder.ToSasQueryParameters(userDelegationKey, blobClient.AccountName)
-            };
-
-            var benchmarkDownloadUri = new BenchmarkExecutableUri(blobUriBuilder.ToUri().ToString());
-
-            await VirtualMachineModule.RunOctaneBenchmark(benchmarkScript, benchmarkDownloadUri, diagnosticId, applicationInsightsConnectionString, resourceGroup, virtualMachine, cancellationToken);
+            var logger = provider.GetRequiredService<ILoggerFactory>().CreateLogger("RunOctaneBenchmark");
+            logger.LogInformation("Executable URI: {BenchmarkExecutableUri}, DiagnosticID: {DiagnosticID}, AppInsightsConnectionString: {AppInsightsConnectionString}", benchmarkExecutableUri.Value, diagnosticId.Value, applicationInsightsConnectionString.Value);
+            await VirtualMachineModule.RunOctaneBenchmark(benchmarkScript, benchmarkExecutableUri, diagnosticId, applicationInsightsConnectionString, resourceGroup, virtualMachine, cancellationToken);
         };
     }
 
@@ -224,5 +201,38 @@ internal static class ServiceProviderModule
         var resourceGroupName = configuration.GetNonEmptyValue("VIRTUAL_MACHINE_RESOURCE_GROUP_NAME");
 
         return await subscription.GetResourceGroupAsync(resourceGroupName, cancellationToken);
+    }
+
+    private static async Task<BenchmarkExecutableUri> GetBenchmarkExecutableUri(IServiceProvider provider, CancellationToken cancellationToken)
+    {
+        var configuration = provider.GetRequiredService<IConfiguration>();
+
+        var storageAccountUrl = configuration.GetSection("AzureWebJobsStorage").GetSection("blobServiceUri").Value;
+        var artifactsContainerName = configuration.GetNonEmptyValue("STORAGE_ACCOUNT_ARTIFACT_CONTAINER_NAME");
+        var benchmarkZipFileName = configuration.GetNonEmptyValue("STORAGE_ACCOUNT_SCRIPT_FILE_NAME");
+        var benchmarkExecutableDownloadUri = new Uri(storageAccountUrl).AppendPathSegment(artifactsContainerName)
+                                                                       .AppendPathSegment(benchmarkZipFileName)
+                                                                       .ToUri();
+
+        var tokenCredential = provider.GetRequiredService<TokenCredential>();
+        var blobClient = new BlobClient(benchmarkExecutableDownloadUri, tokenCredential);
+        var blobServiceClient = blobClient.GetParentBlobContainerClient().GetParentBlobServiceClient();
+        var userDelegationKey = await blobServiceClient.GetUserDelegationKeyAsync(null, DateTimeOffset.UtcNow.AddHours(1), cancellationToken);
+
+        var sasBuilder = new BlobSasBuilder
+        {
+            BlobContainerName = blobClient.BlobContainerName,
+            BlobName = blobClient.Name,
+            Resource = "b",
+            ExpiresOn = userDelegationKey.Value.SignedExpiresOn
+        };
+        sasBuilder.SetPermissions(BlobSasPermissions.Read | BlobSasPermissions.Write);
+
+        var blobUriBuilder = new BlobUriBuilder(blobClient.Uri)
+        {
+            Sas = sasBuilder.ToSasQueryParameters(userDelegationKey, blobClient.AccountName)
+        };
+
+        return new BenchmarkExecutableUri(blobUriBuilder.ToUri().ToString());
     }
 }
